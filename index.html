@@ -4,9 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Premium Social App</title>
-    <link rel="stylesheet" href="style.css">
-    <script src="https://unpkg.com/lucide@latest"></script>
     
+    <link rel="stylesheet" href="style.css">
+    
+    <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
 </head>
@@ -54,27 +55,27 @@
         </div>
         <div class="app-content">
             <h1 class="welcome-text">Bem-vindo.</h1>
-            <p>Use o menu lateral para começar.</p>
+            <p>Toque nos ícones laterais.</p>
         </div>
         
-        <div id="sidePanel" class="side-panel glass-card">
-            <button class="close-panel" id="closePanel"><i data-lucide="x"></i></button>
+        <div id="sidePanel" class="side-panel">
+            <button class="close-panel" id="closePanel"><i data-lucide="arrow-left"></i> Voltar</button>
             <div id="panelContent"></div>
         </div>
     </div>
 
-    <template id="profileTemplate">
-        <div class="panel-header"><h2>Meu Perfil</h2></div>
+    <script type="text/template" id="profileTemplate">
+        <h2>Meu Perfil</h2>
         <div class="profile-details">
             <div class="detail-item"><strong>Nome:</strong> <span id="pNome"></span></div>
             <div class="detail-item"><strong>Nascimento:</strong> <span id="pData"></span></div>
             <div class="detail-item"><strong>Gênero:</strong> <span id="pGenero"></span></div>
             <div class="bio-box"><strong>Bio:</strong><p id="pBio"></p></div>
         </div>
-    </template>
+    </script>
 
-    <template id="chatTemplate">
-        <div class="panel-header"><h2>Chat Global</h2></div>
+    <script type="text/template" id="chatTemplate">
+        <h2>Chat Global</h2>
         <div class="chat-wrapper">
             <div id="chatMessages" class="chat-messages"></div>
             <div class="chat-input-area">
@@ -82,9 +83,8 @@
                 <button id="sendMsg"><i data-lucide="send"></i></button>
             </div>
         </div>
-    </template>
+    </script>
 
     <script src="script.js"></script>
 </body>
 </html>
-
