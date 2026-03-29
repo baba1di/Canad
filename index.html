@@ -9,7 +9,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import {
     getFirestore, collection, addDoc, onSnapshot,
-    query, orderBy, doc, setDoc, serverTimestamp, updateDoc, arrayUnion, arrayRemove, getDocs
+    query, orderBy, doc, setDoc, serverTimestamp, updateDoc, arrayUnion, arrayRemove, getDocs, deleteDoc
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -31,6 +31,9 @@ let meuPeer = null;
 let mediaRecorder;
 let audioChunks = [];
 let gravando = false;
+let msgSelecionadaId = null;
+let msgSelecionadaNome = null;
+let listaUsuarios = [];
 
 window.onload = () => {
     if(user && user.nome) startApp();
@@ -42,9 +45,14 @@ window.onload = () => {
         localStorage.setItem("user_completo", JSON.stringify(user));
         startApp();
     };
+    
+    document.addEventListener("click", (e) => {
+        if (!e.target.closest('.menu-msg-box')) fecharMenuMsg();
+        if (!e.target.closest('.at-box')) fecharAtList();
+    });
 };
 
-function startApp() {
+async function startApp() {
     scrReg.classList.remove("active");
     scrApp.classList.add("active");
     const peerId = user.nome.replace(/\s+/g, '_').toLowerCase();
@@ -55,6 +63,12 @@ function startApp() {
             call.answer(stream);
             call.on('stream', (remoteStream) => { addVideoRemoto(call.peer, remoteStream); });
         }).catch(err => console.error("Erro ao atender:", err));
+    });
+
+    await setDoc(doc(db, "usuarios_online", user.nome), { nome: user.nome, lastSeen: serverTimestamp() });
+    onSnapshot(collection(db, "usuarios_online"), snap => {
+        listaUsuarios = [];
+        snap.forEach(d => listaUsuarios.push(d.data().nome));
     });
 
     setDoc(doc(db, "call", "global"), { participantes: [] }, { merge: true });
@@ -73,14 +87,17 @@ window.abrirChat = () => {
     </div>
     <div class="chat-wrapper">
         <div id="chatMsgs"></div>
+        <div id="atList" class="at-box"></div>
         <div id="avisoChatCall" class="aviso-chat-bottom"></div>
         <div class="chat-bar">
             <button id="btnAudio" class="audio-btn">🎙️</button>
-            <input id="msgInput" placeholder="Manda a boa...">
+            <input id="msgInput" placeholder="Manda a boa..." oninput="checarAt(this)">
             <button class="send-btn" onclick="enviarMsg()">➤</button>
         </div>
     </div>
-    
+    <div id="menuMsg" class="menu-msg-overlay">
+        <div class="menu-msg-box"><button class="btn-apagar" onclick="confirmarApagar()">🗑️ Apagar Mensagem</button></div>
+    </div>
     <div id="telaCall" class="call-overlay">
         <div class="call-grid" id="callGrid"></div>
         <div class="controles-call">
@@ -88,7 +105,6 @@ window.abrirChat = () => {
             <button class="btn-ctrl btn-hangup" onclick="sairChamada()">📞</button>
         </div>
     </div>
-
     <div id="painelPerfil" class="perfil-overlay">
         <div class="perfil-box">
             <button class="voltar-btn" style="float:right" onclick="fecharPerfil()">✕</button>
@@ -105,12 +121,76 @@ window.abrirChat = () => {
     configurarGravador();
 };
 
+window.checarAt = (input) => {
+    const box = document.getElementById("atList");
+    const val = input.value;
+    const lastWord = val.split(" ").pop();
+    if (lastWord.startsWith("@")) {
+        const busca = lastWord.slice(1).toLowerCase();
+        const filtrados = listaUsuarios.filter(u => u.toLowerCase().includes(busca) && u !== user.nome);
+        if (filtrados.length > 0) {
+            box.innerHTML = filtrados.map(u => `<div onclick="selecionarAt('${u}')">@${u}</div>`).join("");
+            box.style.display = "block";
+        } else { fecharAtList(); }
+    } else { fecharAtList(); }
+};
+
+window.selecionarAt = (nome) => {
+    const input = document.getElementById("msgInput");
+    const palavras = input.value.split(" ");
+    palavras.pop();
+    input.value = palavras.join(" ") + " @" + nome + " ";
+    fecharAtList();
+    input.focus();
+};
+
+window.fecharAtList = () => {
+    const box = document.getElementById("atList");
+    if(box) box.style.display = "none";
+};
+
+function escutarMensagens() {
+    const box = document.getElementById("chatMsgs");
+    onSnapshot(query(collection(db,"mensagens"),orderBy("createdAt", "asc")), snap => {
+        box.innerHTML = "";
+        snap.forEach(docSnap => {
+            const d = docSnap.data();
+            const mencao = d.texto?.match(/@(\S+)/);
+            const destino = mencao ? mencao[1] : null;
+            const ehPrivada = destino !== null;
+            const paraMim = destino === user.nome;
+            const euMandei = d.nome === user.nome;
+
+            if (!ehPrivada || euMandei || paraMim) {
+                const div = document.createElement("div");
+                div.className = euMandei ? "msg me" : "msg";
+                if (ehPrivada) div.classList.add("private-msg");
+                div.id = `msg_${docSnap.id}`;
+                
+                let heart = d.liked ? `<span class="heart-pop">❤️</span>` : "";
+                let tagPrivado = ehPrivada ? `<span class="lock-icon">🔒 Privado</span>` : "";
+                let cont = d.audio ? `<audio controls src="${d.audio}"></audio>` : `<p>${d.texto}</p>`;
+                
+                div.innerHTML = `<span class="sender">${d.nome} ${tagPrivado}</span>${cont}${heart}`;
+                
+                div.ondblclick = (e) => { e.stopPropagation(); updateDoc(doc(db, "mensagens", docSnap.id), { liked: !d.liked }); };
+                
+                let timer;
+                div.addEventListener("pointerdown", () => { timer = setTimeout(() => abrirMenuMsg(docSnap.id, d.nome), 600); });
+                div.addEventListener("pointerup", () => clearTimeout(timer));
+                div.addEventListener("pointerleave", () => clearTimeout(timer));
+
+                box.appendChild(div);
+            }
+        });
+        box.scrollTop = box.scrollHeight;
+    });
+}
+
 function configurarGravador() {
     const btn = document.getElementById("btnAudio");
-    
     const iniciar = async (e) => {
-        e.preventDefault();
-        if (gravando) return;
+        e.preventDefault(); if (gravando) return;
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             mediaRecorder = new MediaRecorder(stream);
@@ -123,33 +203,23 @@ function configurarGravador() {
                     reader.readAsDataURL(blob);
                     reader.onloadend = async () => {
                         await addDoc(collection(db, "mensagens"), { 
-                            nome: user.nome, audio: reader.result, createdAt: serverTimestamp() 
+                            nome: user.nome, audio: reader.result, createdAt: serverTimestamp(), liked: false 
                         });
                     };
                 }
                 stream.getTracks().forEach(t => t.stop());
             };
-            mediaRecorder.start();
-            gravando = true;
-            btn.classList.add("recording");
-        } catch (err) { alert("Permita o microfone!"); }
+            mediaRecorder.start(); gravando = true; btn.classList.add("recording");
+        } catch (err) { alert("Ative o microfone!"); }
     };
-
-    const parar = (e) => {
-        e.preventDefault();
-        if (gravando && mediaRecorder) {
-            mediaRecorder.stop();
-            gravando = false;
-            btn.classList.remove("recording");
-        }
-    };
-
+    const parar = (e) => { if (gravando && mediaRecorder) { mediaRecorder.stop(); gravando = false; btn.classList.remove("recording"); } };
     btn.addEventListener("pointerdown", iniciar);
     btn.addEventListener("pointerup", parar);
     btn.addEventListener("pointerleave", parar);
 }
 
-function addVideoRemoto(peerId, stream) {
+// Funções de Call
+window.addVideoRemoto = (peerId, stream) => {
     const grid = document.getElementById("callGrid");
     let card = document.getElementById(`card_${peerId}`);
     if (!card) {
@@ -164,7 +234,7 @@ function addVideoRemoto(peerId, stream) {
     v.muted = (peerId === meuPeer.id);
     v.srcObject = stream;
     card.appendChild(v);
-}
+};
 
 window.entrarNaCall = async () => {
     document.getElementById("telaCall").classList.add("active");
@@ -208,52 +278,38 @@ function escutarCall() {
     });
 }
 
-function escutarMensagens() {
-    const box = document.getElementById("chatMsgs");
-    onSnapshot(query(collection(db,"mensagens"),orderBy("createdAt", "asc")), snap => {
-        box.innerHTML = "";
-        snap.forEach(docSnap => {
-            const d = docSnap.data();
-            const div = document.createElement("div");
-            div.className = d.nome === user.nome ? "msg me" : "msg";
-            let heart = d.liked ? `<span class="heart-pop">❤️</span>` : "";
-            let cont = d.audio ? `<audio controls src="${d.audio}"></audio>` : `<p>${d.texto}</p>`;
-            div.innerHTML = `<span class="sender">${d.nome}</span>${cont}${heart}`;
-            div.ondblclick = () => updateDoc(doc(db, "mensagens", docSnap.id), { liked: !d.liked });
-            box.appendChild(div);
-        });
-        box.scrollTop = box.scrollHeight;
-    });
-}
-
+window.abrirMenuMsg = (id, nome) => { msgSelecionadaId = id; msgSelecionadaNome = nome; document.getElementById("menuMsg").style.display = "flex"; };
+window.fecharMenuMsg = () => { document.getElementById("menuMsg").style.display = "none"; };
+window.confirmarApagar = async () => { if (msgSelecionadaNome === user.nome) await deleteDoc(doc(db, "mensagens", msgSelecionadaId)); fecharMenuMsg(); };
 window.enviarMsg = async () => {
     const input = document.getElementById("msgInput");
     if(!input.value.trim()) return;
     await addDoc(collection(db,"mensagens"), { nome: user.nome, texto: input.value, createdAt: serverTimestamp(), liked: false });
     input.value = "";
 };
-
-window.salvarPerfil = () => {
-    user.nome = document.getElementById("editNome").value;
-    user.bio = document.getElementById("editBio").value;
-    localStorage.setItem("user_completo", JSON.stringify(user));
-    alert("Perfil salvo! ✨");
-    fecharPerfil();
-};
-
-window.abrirPerfil = () => document.getElementById("painelPerfil").style.display = "flex";
-window.fecharPerfil = () => document.getElementById("painelPerfil").style.display = "none";
+window.salvarPerfil = () => { user.nome = editNome.value; user.bio = editBio.value; localStorage.setItem("user_completo", JSON.stringify(user)); alert("Salvo! ✨"); fecharPerfil(); };
+window.abrirPerfil = () => painelPerfil.style.display = "flex";
+window.fecharPerfil = () => painelPerfil.style.display = "none";
 window.fechar = () => { side.classList.remove("open"); btnFlutuante.style.display = "flex"; };
 </script>
 
 <style>
 :root { --main: #00f2ff; --bg: #000; }
 body { margin:0; background: var(--bg); color:#fff; font-family: sans-serif; height:100vh; overflow:hidden; }
-.audio-btn { background: #222; border: none; font-size: 20px; width: 45px; height: 45px; border-radius: 50%; color: #fff; touch-action: none; cursor: pointer; }
+
+/* @ Mencionar */
+.at-box { position: absolute; bottom: 70px; left: 10px; background: #111; border: 1px solid var(--main); border-radius: 12px; width: 200px; display: none; z-index: 10; max-height: 150px; overflow-y: auto; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
+.at-box div { padding: 12px; border-bottom: 1px solid #222; cursor: pointer; font-size: 14px; color: var(--main); }
+
+/* Msg Privada */
+.private-msg { border: 1px dashed var(--main) !important; background: rgba(0, 242, 255, 0.05) !important; }
+.lock-icon { font-size: 9px; background: #222; color: var(--main); padding: 2px 6px; border-radius: 4px; margin-left: 5px; font-weight: bold; }
+
+.audio-btn { background: #222; border: none; font-size: 20px; width: 45px; height: 45px; border-radius: 50%; color: #fff; touch-action: none; }
 .audio-btn.recording { background: #ff4444; transform: scale(1.2); animation: pulse 1s infinite; }
-audio { width: 200px; height: 40px; filter: invert(1); margin-top: 5px; }
 @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 68, 68, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(255, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 68, 68, 0); } }
-.aviso-bubble { background: var(--main); color: #000; padding: 10px; border-radius: 12px; text-align: center; font-weight: bold; animation: pop 0.3s; cursor: pointer; }
+
+.aviso-bubble { background: var(--main); color: #000; padding: 10px; border-radius: 12px; text-align: center; font-weight: bold; cursor: pointer; margin-bottom: 5px; }
 .chat-header { display: flex; justify-content: space-between; align-items: center; padding: 15px; background: #111; border-bottom: 1px solid #222; }
 .icon-btn { background: #222; border: none; width: 45px; height: 45px; border-radius: 50%; color: var(--main); font-size: 20px; }
 .chat-wrapper { display: flex; flex-direction: column; height: calc(100% - 75px); position: relative; }
@@ -261,17 +317,25 @@ audio { width: 200px; height: 40px; filter: invert(1); margin-top: 5px; }
 .msg { background: #1a1a1a; padding: 10px 15px; border-radius: 18px; max-width: 80%; align-self: flex-start; position: relative; border: 1px solid #222; }
 .msg.me { background: var(--main); color: #000; align-self: flex-end; border: none; }
 .heart-pop { position: absolute; bottom: -8px; right: -5px; background: #000; border-radius: 50%; padding: 2px 5px; border: 1px solid #333; font-size: 14px; animation: pop 0.3s; }
+audio { width: 200px; height: 40px; filter: invert(1); margin-top: 5px; }
+
 .call-overlay { position: fixed; inset: 0; background: #000; z-index: 1000; display: none; flex-direction: column; align-items: center; justify-content: center; }
 .call-overlay.active { display: flex; }
 .call-grid { display: grid; gap: 10px; width: 95%; height: 75vh; grid-template-columns: 1fr 1fr; }
 .video-card { background: #111; border-radius: 20px; overflow: hidden; border: 1px solid #222; position: relative; }
-video { width: 100%; height: 100%; object-fit: cover; background: #000; }
+video { width: 100%; height: 100%; object-fit: cover; }
 .btn-ctrl { width: 60px; height: 60px; border-radius: 50%; border: none; background: #222; color: #fff; font-size: 24px; }
 .active-btn { background: var(--main) !important; color: #000 !important; }
 .btn-hangup { background: #ff4444 !important; }
+
 .chat-bar { padding: 10px; background: #111; display: flex; gap: 10px; align-items: center; }
 .chat-bar input { flex:1; background:#000; border:1px solid #333; padding:12px; border-radius:20px; color:#fff; }
 .send-btn { background: var(--main); border: none; width: 45px; height: 45px; border-radius: 50%; font-size: 18px; }
+
+.menu-msg-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 3000; display: none; align-items: center; justify-content: center; }
+.menu-msg-box { background: #111; padding: 20px; border-radius: 20px; border: 1px solid var(--main); width: 200px; }
+.btn-apagar { background: #ff4444; color: white; border: none; padding: 12px; width: 100%; border-radius: 12px; font-weight: bold; }
+
 .perfil-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 2000; display: none; align-items: center; justify-content: center; }
 .perfil-box { width: 85%; background: #111; padding: 25px; border-radius: 25px; border: 1px solid var(--main); }
 .menu button { width: 65px; height: 65px; border-radius: 50%; font-size: 28px; background: var(--main); border: none; position: fixed; bottom: 30px; right: 25px; box-shadow: 0 0 15px var(--main); }
@@ -297,6 +361,92 @@ video { width: 100%; height: 100%; object-fit: cover; background: #000; }
     <div id="btnFlutuante" class="menu"><button onclick="abrirChat()">💬</button></div>
     <div id="side" class="panel"><div id="sideContent" style="height:100%; display:flex; flex-direction:column;"></div></div>
 </div>
+<style>
+    /* Estilização dos campos de entrada de registro e perfil */
+    input, select, textarea {
+        width: 100%;
+        padding: 15px;
+        margin-top: 10px;
+        background: #000;
+        border: 1px solid #222;
+        border-radius: 12px;
+        color: #fff;
+        font-size: 16px;
+        box-sizing: border-box;
+    }
+
+    textarea { height: 80px; resize: none; }
+
+    input:focus, textarea:focus {
+        border-color: var(--main);
+        outline: none;
+    }
+
+    .save-btn {
+        background: var(--main);
+        color: #000;
+        border: none;
+        padding: 15px;
+        width: 100%;
+        border-radius: 12px;
+        font-weight: bold;
+        margin-top: 20px;
+        cursor: pointer;
+    }
+
+    .avatar-grande {
+        width: 80px;
+        height: 80px;
+        background: #222;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 40px;
+        margin: 0 auto 15px;
+        border: 2px solid var(--main);
+    }
+
+    .voltar-btn {
+        background: none;
+        border: none;
+        color: #fff;
+        font-size: 20px;
+        cursor: pointer;
+    }
+
+    /* Ajuste para o scroll suave */
+    #chatMsgs {
+        scroll-behavior: smooth;
+    }
+
+    /* Efeito de clique nos botões */
+    button:active {
+        transform: scale(0.95);
+    }
+</style>
+
+<script>
+    // Função adicional para garantir que o usuário apareça como online ao entrar
+    async function atualizarStatusOnline() {
+        if (user.nome) {
+            await setDoc(doc(db, "usuarios_online", user.nome), {
+                nome: user.nome,
+                lastSeen: serverTimestamp()
+            });
+        }
+    }
+
+    // Executa a atualização de status a cada 1 minuto
+    setInterval(atualizarStatusOnline, 60000);
+
+    // Bloqueia o fechamento acidental da aba se estiver em call
+    window.onbeforeunload = () => {
+        if (document.getElementById("telaCall").classList.contains("active")) {
+            return "Você está em uma chamada! Deseja realmente sair?";
+        }
+    };
+</script>
+
 </body>
 </html>
-
