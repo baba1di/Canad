@@ -1,4 +1,4 @@
-// 1. Configuração do seu Firebase
+// Configuração do Firebase do Usuário
 const firebaseConfig = {
     apiKey: "AIzaSyAjH1kVPCZHqZRzu9AszDKiD9csdEmSz_c",
     authDomain: "chat-app-c974a.firebaseapp.com",
@@ -8,26 +8,30 @@ const firebaseConfig = {
     appId: "1:753329556773:web:4511da13d5355efca81ecc"
 };
 
-// Inicializa Firebase
+// Inicialização
 firebase.initializeApp(firebaseConfig);
 const database = firebase.database();
 
 let usuario = { nome: "", dataNasc: "", genero: "", bio: "" };
 
-// Função Calcular Idade
-function calcIdade(d) {
+// Função para idade
+const calcIdade = (d) => {
     const hoje = new Date();
     const n = new Date(d);
     let i = hoje.getFullYear() - n.getFullYear();
     if (hoje.getMonth() < n.getMonth() || (hoje.getMonth() === n.getMonth() && hoje.getDate() < n.getDate())) i--;
     return i;
-}
+};
 
-// Registro
+// Lógica de Registro
 document.getElementById('profileForm').onsubmit = (e) => {
     e.preventDefault();
     const dataVal = document.getElementById('regData').value;
-    if (calcIdade(dataVal) < 10) return alert("Menores de 10 não entram!");
+    
+    if (calcIdade(dataVal) < 10) {
+        alert("Acesso permitido apenas para maiores de 10 anos.");
+        return;
+    }
 
     usuario = {
         nome: document.getElementById('regNome').value,
@@ -44,16 +48,17 @@ document.getElementById('profileForm').onsubmit = (e) => {
 const panel = document.getElementById('sidePanel');
 const content = document.getElementById('panelContent');
 
-function abrir(id, fn) {
-    content.innerHTML = document.getElementById(id).innerHTML;
-    if(fn) fn();
+function abrir(id, callback) {
+    const template = document.getElementById(id);
+    content.innerHTML = template.innerHTML;
+    if(callback) callback();
     panel.classList.add('open');
     lucide.createIcons();
 }
 
 document.getElementById('closePanel').onclick = () => panel.classList.remove('open');
 
-// Perfil
+// Abrir Perfil
 document.getElementById('openProfile').onclick = () => {
     abrir('profileTemplate', () => {
         document.getElementById('pNome').innerText = usuario.nome;
@@ -63,7 +68,7 @@ document.getElementById('openProfile').onclick = () => {
     });
 };
 
-// CHAT FUNCIONANDO COM FIREBASE
+// Abrir Chat (Realtime)
 document.getElementById('openChat').onclick = () => {
     document.querySelector('.notification-badge').style.display = 'none';
     abrir('chatTemplate', () => {
@@ -71,19 +76,19 @@ document.getElementById('openChat').onclick = () => {
         const input = document.getElementById('chatInput');
         const box = document.getElementById('chatMessages');
 
-        // Enviar para o Firebase
         btn.onclick = () => {
-            if(!input.value.trim()) return;
+            const texto = input.value.trim();
+            if(!texto) return;
             database.ref('mensagens').push({
                 user: usuario.nome,
-                text: input.value,
-                time: Date.now()
+                text: texto,
+                timestamp: Date.now()
             });
             input.value = '';
         };
 
-        // Ouvir o Firebase em tempo real
-        database.ref('mensagens').limitToLast(20).on('child_added', (snapshot) => {
+        // Escutar mensagens novas
+        database.ref('mensagens').limitToLast(50).on('child_added', (snapshot) => {
             const data = snapshot.val();
             const div = document.createElement('div');
             div.className = 'msg-bubble';
@@ -94,4 +99,5 @@ document.getElementById('openChat').onclick = () => {
     });
 };
 
+// Inicializa ícones na carga inicial
 lucide.createIcons();
