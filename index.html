@@ -26,8 +26,7 @@ const db = getFirestore(app);
 
 let user = JSON.parse(localStorage.getItem("user_completo")) || {};
 let streamLocal = null;
-let screenStream = null; // Para compartilhar tela
-let camAtiva = false;
+let screenStream = null;
 let meuPeer = null;
 let mediaRecorder;
 let audioChunks = [];
@@ -65,7 +64,6 @@ async function startApp() {
     meuPeer = new Peer(peerId); 
 
     meuPeer.on('call', (call) => {
-        // Se estiver compartilhando tela, envia a tela, senão a câmera
         const streamParaEnviar = screenStream || streamLocal;
         if(streamParaEnviar) {
             call.answer(streamParaEnviar);
@@ -236,18 +234,21 @@ window.toggleShareScreen = async () => {
     const btn = document.getElementById("btnScreen");
     if (!screenStream) {
         try {
-            // Pega tela e áudio do sistema (Spotify/YouTube)
             screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
             btn.classList.add("active-btn");
-            addVideoRemoto(meuPeer.id, screenStream);
             
-            // Troca o vídeo para todos na call
-            listaUsuarios.forEach(u => {
-                if(u !== user.nome) {
-                    const id = u.replace(/\s+/g, '_').toLowerCase();
-                    meuPeer.call(id, screenStream);
-                }
-            });
+            const meuVid = document.querySelector(`#card_${meuPeer.id} video`);
+            if(meuVid) meuVid.srcObject = screenStream;
+
+            // Transmite a troca de track para todos os conectados
+            for (let conId in meuPeer.connections) {
+                meuPeer.connections[conId].forEach(conn => {
+                    if (conn.peerConnection) {
+                        const sender = conn.peerConnection.getSenders().find(s => s.track.kind === 'video');
+                        if (sender) sender.replaceTrack(screenStream.getVideoTracks()[0]);
+                    }
+                });
+            }
 
             screenStream.getVideoTracks()[0].onended = () => toggleShareScreen();
         } catch (e) { console.error(e); }
@@ -255,6 +256,15 @@ window.toggleShareScreen = async () => {
         screenStream.getTracks().forEach(t => t.stop());
         screenStream = null;
         btn.classList.remove("active-btn");
+        
+        for (let conId in meuPeer.connections) {
+            meuPeer.connections[conId].forEach(conn => {
+                if (conn.peerConnection) {
+                    const sender = conn.peerConnection.getSenders().find(s => s.track.kind === 'video');
+                    if (sender) sender.replaceTrack(streamLocal.getVideoTracks()[0]);
+                }
+            });
+        }
         addVideoRemoto(meuPeer.id, streamLocal);
     }
 };
@@ -294,14 +304,23 @@ window.addVideoRemoto = (peerId, stream) => {
     card.appendChild(v);
 };
 
-window.sairChamada = async () => { 
-    if(streamLocal) streamLocal.getTracks().forEach(t => t.stop()); 
-    if(screenStream) screenStream.getTracks().forEach(t => t.stop());
-    await updateDoc(doc(db, "call", "global"), { participantes: arrayRemove(user.nome) }); 
-    location.reload(); 
-};
-
-// --- Outras funções originais mantidas ---
+window.sairChamada = async () => { if(streamLocal) streamLocal.getTracks().forEach(t => t.stop()); if(screenStream) screenStream.getTracks().forEach(t => t.stop()); await updateDoc(doc(db, "call", "global"), { participantes: arrayRemove(user.nome) }); location.reload(); };
+window.minimizarCall = () => { document.getElementById("telaCall").classList.remove("active"); document.getElementById("btnRetornarCall").style.display = "block"; };
+window.maximizarCall = () => { document.getElementById("telaCall").classList.add("active"); document.getElementById("btnRetornarCall").style.display = "none"; };
+function escutarCall() { onSnapshot(doc(db, "call", "global"), (d) => { const p = d.data()?.participantes || []; const aviso = document.getElementById("avisoChatCall"); if(aviso && p.length > 0) { aviso.innerHTML = `<div class="aviso-bubble" onclick="entrarNaCall()"><b>${p[0]} está em call!</b> Entrar (${p.length}/4)</div>`; } else if(aviso) { aviso.innerHTML = ""; } }); }
+window.abrirMenuMsg = (id, nome) => { msgSelecionadaId = id; msgSelecionadaNome = nome; document.getElementById("menuMsg").style.display = "flex"; };
+window.fecharMenuMsg = () => { document.getElementById("menuMsg").style.display = "none"; };
+window.confirmarApagar = async () => { if (msgSelecionadaNome === user.nome) { await deleteDoc(doc(db, "mensagens", msgSelecionadaId)); } else { msgsApagadasLocal.push(msgSelecionadaId); localStorage.setItem("msgs_ocultas", JSON.stringify(msgsApagadasLocal)); escutarMensagens(); } fecharMenuMsg(); };
+window.salvarPerfil = () => { user.nome = editNome.value; user.bio = editBio.value; localStorage.setItem("user_completo", JSON.stringify(user)); alert("Salvo! ✨"); fecharPerfil(); };
+window.abrirPerfil = () => painelPerfil.style.display = "flex";
+window.fecharPerfil = () => painelPerfil.style.display = "none";
+window.fechar = () => { side.classList.remove("open"); btnFlutuante.style.display = "flex"; };
+function mostrarNotificacao() { const note = document.getElementById("notificacaoChat"); if(note) { note.classList.add("show"); setTimeout(() => note.classList.remove("show"), 3000); } }
+let typingTimer;
+window.aoDigitar = (input) => { checarAt(input); updateDoc(doc(db, "usuarios_online", user.nome), { digitando: true }); clearTimeout(typingTimer); typingTimer = setTimeout(() => { updateDoc(doc(db, "usuarios_online", user.nome), { digitando: false }); }, 2000); };
+window.checarAt = (input) => { const box = document.getElementById("atList"); const lastWord = input.value.split(" ").pop(); if (lastWord.startsWith("@")) { const busca = lastWord.slice(1).toLowerCase(); const filtrados = listaUsuarios.filter(u => u.toLowerCase().includes(busca) && u !== user.nome); if (filtrados.length > 0) { box.innerHTML = filtrados.map(u => `<div onclick="selecionarAt('${u}')">@${u}</div>`).join(""); box.style.display = "block"; } else { fecharAtList(); } } else { fecharAtList(); } };
+window.selecionarAt = (nome) => { const input = document.getElementById("msgInput"); const palavras = input.value.split(" "); palavras.pop(); input.value = palavras.join(" ") + " @" + nome + " "; fecharAtList(); input.focus(); };
+window.fecharAtList = () => { const box = document.getElementById("atList"); if(box) box.style.display = "none"; };
 window.enviarFoto = (input) => {
     const file = input.files[0];
     if (file) {
@@ -319,7 +338,6 @@ window.enviarFoto = (input) => {
         reader.readAsDataURL(file);
     }
 };
-
 window.enviarMsg = async () => {
     const input = document.getElementById("msgInput");
     if(!input.value.trim()) return;
@@ -328,63 +346,12 @@ window.enviarMsg = async () => {
     cancelarResposta();
     updateDoc(doc(db, "usuarios_online", user.nome), { digitando: false });
 };
-
-window.expandirFoto = (src) => { document.getElementById("imgExpandida").src = src; document.getElementById("fullView").style.display = "flex"; };
-window.fecharFoto = () => document.getElementById("fullView").style.display = "none";
-window.baixarFoto = () => { const link = document.createElement("a"); link.href = document.getElementById("imgExpandida").src; link.download = "imagem_chat.png"; link.click(); };
-function prepararResposta(nome, texto) { respondendoA = { nome, texto }; const p = document.getElementById("replyPreview"); p.innerHTML = `Respondendo a ${nome}... <span onclick="cancelarResposta()">✕</span>`; p.style.display = "block"; }
-window.cancelarResposta = () => { respondendoA = null; document.getElementById("replyPreview").style.display = "none"; };
-function configurarGravador() {
-    const btn = document.getElementById("btnAudio");
-    const iniciar = async (e) => {
-        e.preventDefault(); if (gravando) return;
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            mediaRecorder = new MediaRecorder(stream);
-            audioChunks = [];
-            mediaRecorder.ondataavailable = (ev) => audioChunks.push(ev.data);
-            mediaRecorder.onstop = async () => {
-                if (audioChunks.length > 0) {
-                    const blob = new Blob(audioChunks, { type: 'audio/webm' });
-                    const reader = new FileReader();
-                    reader.readAsDataURL(blob);
-                    reader.onloadend = async () => {
-                        await addDoc(collection(db, "mensagens"), { 
-                            nome: user.nome, audio: reader.result, replyTo: respondendoA, createdAt: serverTimestamp(), liked: false 
-                        });
-                        cancelarResposta();
-                    };
-                }
-                stream.getTracks().forEach(t => t.stop());
-            };
-            mediaRecorder.start(); gravando = true; btn.classList.add("recording");
-        } catch (err) { alert("Ative o microfone!"); }
-    };
-    const parar = (e) => { if (gravando && mediaRecorder) { mediaRecorder.stop(); gravando = false; btn.classList.remove("recording"); } };
-    btn.addEventListener("pointerdown", iniciar); btn.addEventListener("pointerup", parar); btn.addEventListener("pointerleave", parar);
-}
-window.minimizarCall = () => { document.getElementById("telaCall").classList.remove("active"); document.getElementById("btnRetornarCall").style.display = "block"; };
-window.maximizarCall = () => { document.getElementById("telaCall").classList.add("active"); document.getElementById("btnRetornarCall").style.display = "none"; };
-function escutarCall() { onSnapshot(doc(db, "call", "global"), (d) => { const p = d.data()?.participantes || []; const aviso = document.getElementById("avisoChatCall"); if(aviso && p.length > 0) { aviso.innerHTML = `<div class="aviso-bubble" onclick="entrarNaCall()"><b>${p[0]} está em call!</b> Entrar (${p.length}/4)</div>`; } else if(aviso) { aviso.innerHTML = ""; } }); }
-window.abrirMenuMsg = (id, nome) => { msgSelecionadaId = id; msgSelecionadaNome = nome; document.getElementById("menuMsg").style.display = "flex"; };
-window.fecharMenuMsg = () => { document.getElementById("menuMsg").style.display = "none"; };
-window.confirmarApagar = async () => { if (msgSelecionadaNome === user.nome) { await deleteDoc(doc(db, "mensagens", msgSelecionadaId)); } else { msgsApagadasLocal.push(msgSelecionadaId); localStorage.setItem("msgs_ocultas", JSON.stringify(msgsApagadasLocal)); escutarMensagens(); } fecharMenuMsg(); };
-window.salvarPerfil = () => { user.nome = editNome.value; user.bio = editBio.value; localStorage.setItem("user_completo", JSON.stringify(user)); alert("Salvo! ✨"); fecharPerfil(); };
-window.abrirPerfil = () => painelPerfil.style.display = "flex";
-window.fecharPerfil = () => painelPerfil.style.display = "none";
-window.fechar = () => { side.classList.remove("open"); btnFlutuante.style.display = "flex"; };
-function mostrarNotificacao() { const note = document.getElementById("notificacaoChat"); if(note) { note.classList.add("show"); setTimeout(() => note.classList.remove("show"), 3000); } }
-let typingTimer;
-window.aoDigitar = (input) => { checarAt(input); updateDoc(doc(db, "usuarios_online", user.nome), { digitando: true }); clearTimeout(typingTimer); typingTimer = setTimeout(() => { updateDoc(doc(db, "usuarios_online", user.nome), { digitando: false }); }, 2000); };
-window.checarAt = (input) => { const box = document.getElementById("atList"); const lastWord = input.value.split(" ").pop(); if (lastWord.startsWith("@")) { const busca = lastWord.slice(1).toLowerCase(); const filtrados = listaUsuarios.filter(u => u.toLowerCase().includes(busca) && u !== user.nome); if (filtrados.length > 0) { box.innerHTML = filtrados.map(u => `<div onclick="selecionarAt('${u}')">@${u}</div>`).join(""); box.style.display = "block"; } else { fecharAtList(); } } else { fecharAtList(); } };
-window.selecionarAt = (nome) => { const input = document.getElementById("msgInput"); const palavras = input.value.split(" "); palavras.pop(); input.value = palavras.join(" ") + " @" + nome + " "; fecharAtList(); input.focus(); };
-window.fecharAtList = () => { const box = document.getElementById("atList"); if(box) box.style.display = "none"; };
 </script>
 
 <style>
 :root { --main: #00f2ff; --bg: #000; }
 body { margin:0; background: var(--bg); color:#fff; font-family: sans-serif; height:100vh; overflow:hidden; }
-.active-btn { background: var(--main) !important; color: #000 !important; box-shadow: 0 0 10px var(--main); }
+.active-btn { background: var(--main) !important; color: #000 !important; }
 .gallery-btn { background: #0044ff; color: white; border: 2px solid var(--main); width: 45px; height: 45px; border-radius: 50%; font-size: 14px; cursor: pointer; flex-shrink: 0; }
 .img-mini { width: 120px; height: 120px; object-fit: cover; border-radius: 12px; cursor: pointer; margin-top: 5px; border: 1px solid #333; }
 .reply-preview { background: #111; padding: 8px; border-left: 3px solid var(--main); display: none; font-size: 12px; color: #aaa; }
