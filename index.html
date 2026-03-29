@@ -31,30 +31,26 @@
                         <input type="text" id="regNome" placeholder=" " required>
                         <label>Nome Completo</label>
                     </div>
-
                     <div class="input-wrapper" style="--delay: 0.2s">
                         <i data-lucide="calendar"></i>
                         <input type="date" id="regData" required>
                         <label class="fixed">Data de Nascimento</label>
                     </div>
-
                     <div class="input-wrapper" style="--delay: 0.3s">
                         <i data-lucide="venn-diagram"></i>
                         <select id="regGenero" required>
-                            <option value="" disabled selected>Selecione o Gênero</option>
+                            <option value="" disabled selected>Gênero</option>
                             <option value="Masculino">Masculino</option>
                             <option value="Feminino">Feminino</option>
-                            <option value="Outro">Personalizado</option>
+                            <option value="Outro">Outro</option>
                         </select>
                     </div>
-
                     <div class="input-wrapper full-width" style="--delay: 0.4s">
                         <i data-lucide="align-left"></i>
                         <textarea id="regBio" placeholder=" " rows="3" required></textarea>
                         <label>Sua Bio...</label>
                     </div>
                 </div>
-
                 <button type="submit" class="btn-shine" id="btnRegister">
                     <span>Entrar no App</span>
                     <i data-lucide="arrow-right"></i>
@@ -64,56 +60,39 @@
     </div>
 
     <div id="appScreen" class="full-screen">
-        
         <div class="actions-bar">
-            <button class="action-btn" id="openProfile" title="Perfil">
-                <i data-lucide="settings"></i>
-            </button>
-            <button class="action-btn" id="openChat" title="Chat">
+            <button class="action-btn" id="openProfile"><i data-lucide="settings"></i></button>
+            <button class="action-btn" id="openChat">
                 <i data-lucide="message-square"></i>
                 <span class="notification-badge"></span>
             </button>
         </div>
-
         <div class="app-content">
             <h1 class="welcome-text">Bem-vindo ao Futuro.</h1>
-            <p>Selecione uma opção no menu lateral.</p>
+            <p>Clique nos ícones ao lado para navegar.</p>
         </div>
-
         <div id="sidePanel" class="side-panel glass-card">
             <button class="close-panel" id="closePanel">&times;</button>
-            
             <div id="panelContent"></div>
         </div>
     </div>
 
     <template id="profileTemplate">
-        <div class="panel-header">
-            <div class="icon-box gradient-2"><i data-lucide="user-circle"></i></div>
-            <h2>Seu Perfil</h2>
-        </div>
+        <div class="panel-header"><h2>Seu Perfil</h2></div>
         <div class="profile-details">
             <p><strong>Nome:</strong> <span id="pNome"></span></p>
             <p><strong>Nascimento:</strong> <span id="pData"></span></p>
             <p><strong>Gênero:</strong> <span id="pGenero"></span></p>
-            <div class="bio-box">
-                <strong>Bio:</strong>
-                <p id="pBio"></p>
-            </div>
+            <div class="bio-box"><strong>Bio:</strong> <p id="pBio"></p></div>
         </div>
     </template>
 
     <template id="chatTemplate">
-        <div class="panel-header">
-            <div class="icon-box gradient-1"><i data-lucide="message-circle"></i></div>
-            <h2>Chat Global</h2>
-        </div>
+        <div class="panel-header"><h2>Chat Global</h2></div>
         <div class="chat-wrapper">
-            <div id="chatMessages" class="chat-messages">
-                <div class="msg-bubble system">Sistema: Bem-vindo ao chat!</div>
-            </div>
+            <div id="chatMessages" class="chat-messages"></div>
             <div class="chat-input-area">
-                <input type="text" id="chatInput" placeholder="Digite sua mensagem...">
+                <input type="text" id="chatInput" placeholder="Sua mensagem...">
                 <button id="sendMsg"><i data-lucide="send"></i></button>
             </div>
         </div>
@@ -123,3 +102,4 @@
     <script>lucide.createIcons();</script>
 </body>
 </html>
+
