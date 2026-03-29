@@ -152,64 +152,12 @@ window.abrirChat = () => {
     configurarGravador();
 };
 
-window.minimizarCall = () => {
-    document.getElementById("telaCall").classList.remove("active");
-    document.getElementById("btnRetornarCall").style.display = "block";
-};
-window.maximizarCall = () => {
-    document.getElementById("telaCall").classList.add("active");
-    document.getElementById("btnRetornarCall").style.display = "none";
-};
-
-function mostrarNotificacao() {
-    const note = document.getElementById("notificacaoChat");
-    if(note) {
-        note.classList.add("show");
-        setTimeout(() => note.classList.remove("show"), 3000);
-    }
-}
-
-let typingTimer;
-window.aoDigitar = (input) => {
-    checarAt(input);
-    updateDoc(doc(db, "usuarios_online", user.nome), { digitando: true });
-    clearTimeout(typingTimer);
-    typingTimer = setTimeout(() => {
-        updateDoc(doc(db, "usuarios_online", user.nome), { digitando: false });
-    }, 2000);
-};
-
-window.checarAt = (input) => {
-    const box = document.getElementById("atList");
-    const val = input.value;
-    const lastWord = val.split(" ").pop();
-    if (lastWord.startsWith("@")) {
-        const busca = lastWord.slice(1).toLowerCase();
-        const filtrados = listaUsuarios.filter(u => u.toLowerCase().includes(busca) && u !== user.nome);
-        if (filtrados.length > 0) {
-            box.innerHTML = filtrados.map(u => `<div onclick="selecionarAt('${u}')">@${u}</div>`).join("");
-            box.style.display = "block";
-        } else { fecharAtList(); }
-    } else { fecharAtList(); }
-};
-
-window.selecionarAt = (nome) => {
-    const input = document.getElementById("msgInput");
-    const palavras = input.value.split(" ");
-    palavras.pop();
-    input.value = palavras.join(" ") + " @" + nome + " ";
-    fecharAtList();
-    input.focus();
-};
-
-window.fecharAtList = () => {
-    const box = document.getElementById("atList");
-    if(box) box.style.display = "none";
-};
+let clickTimer = null; // Para gerenciar clique simples vs duplo
 
 function escutarMensagens() {
     const box = document.getElementById("chatMsgs");
     let primeiraCarga = true;
+    
     onSnapshot(query(collection(db,"mensagens"),orderBy("createdAt", "asc")), snap => {
         box.innerHTML = "";
         snap.forEach(docSnap => {
@@ -220,6 +168,7 @@ function escutarMensagens() {
             const ehPrivada = destino !== null;
             const paraMim = destino === user.nome;
             const euMandei = d.nome === user.nome;
+            
             if (!ehPrivada || euMandei || paraMim) {
                 const div = document.createElement("div");
                 div.className = euMandei ? "msg me" : "msg";
@@ -236,14 +185,31 @@ function escutarMensagens() {
                 } else if(d.audio) {
                     content = `<audio controls src="${d.audio}"></audio>`;
                 } else {
-                    content = `<p>${d.texto}</p>`;
+                    content = `<p>${d.texto || ""}</p>`;
                 }
 
                 div.innerHTML = `${replyHtml}<span class="sender">${d.nome} ${tagPrivado}</span>${content}${heart}`;
                 
-                div.onclick = () => prepararResposta(d.nome, d.texto || (d.foto ? "Foto" : "Áudio"));
-                div.ondblclick = (e) => { e.stopPropagation(); updateDoc(doc(db, "mensagens", docSnap.id), { liked: !d.liked }); };
-                
+                // --- FIX: LOGICA DE CLIQUE DUPLO vs SIMPLES ---
+                div.onclick = (e) => {
+                    if (clickTimer) {
+                        clearTimeout(clickTimer);
+                        clickTimer = null;
+                    } else {
+                        clickTimer = setTimeout(() => {
+                            prepararResposta(d.nome, d.texto || (d.foto ? "Foto" : "Áudio"));
+                            clickTimer = null;
+                        }, 250); 
+                    }
+                };
+
+                div.ondblclick = (e) => { 
+                    e.stopPropagation();
+                    if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; }
+                    updateDoc(doc(db, "mensagens", docSnap.id), { liked: !d.liked }); 
+                };
+                // ----------------------------------------------
+
                 let timer;
                 const startTimer = () => { timer = setTimeout(() => abrirMenuMsg(docSnap.id, d.nome), 600); };
                 const endTimer = () => { clearTimeout(timer); };
@@ -259,7 +225,6 @@ function escutarMensagens() {
     });
 }
 
-// BUG DA FOTO DO TIKTOK ARRUMADO AQUI
 window.enviarFoto = (input) => {
     const file = input.files[0];
     if (file) {
@@ -272,32 +237,26 @@ window.enviarFoto = (input) => {
                });
                cancelarResposta();
             }
-            input.value = ""; // Reseta o input para aceitar a mesma foto depois
+            input.value = ""; 
         };
-        reader.onerror = () => alert("Erro ao carregar a foto do dispositivo.");
         reader.readAsDataURL(file);
     }
 };
 
-window.expandirFoto = (src) => {
-    const img = document.getElementById("imgExpandida");
-    img.src = src;
-    document.getElementById("fullView").style.display = "flex";
-};
-window.fecharFoto = () => document.getElementById("fullView").style.display = "none";
-window.baixarFoto = () => {
-    const link = document.createElement("a");
-    link.href = document.getElementById("imgExpandida").src;
-    link.download = "imagem_chat.png";
-    link.click();
+window.enviarMsg = async () => {
+    const input = document.getElementById("msgInput");
+    if(!input.value.trim()) return;
+    await addDoc(collection(db,"mensagens"), { nome: user.nome, texto: input.value, replyTo: respondendoA, createdAt: serverTimestamp(), liked: false });
+    input.value = "";
+    cancelarResposta();
+    updateDoc(doc(db, "usuarios_online", user.nome), { digitando: false });
 };
 
-function prepararResposta(nome, texto) {
-    respondendoA = { nome, texto };
-    const p = document.getElementById("replyPreview");
-    p.innerHTML = `Respondendo a ${nome}... <span onclick="cancelarResposta()">✕</span>`;
-    p.style.display = "block";
-}
+// --- Funções Auxiliares ---
+window.expandirFoto = (src) => { document.getElementById("imgExpandida").src = src; document.getElementById("fullView").style.display = "flex"; };
+window.fecharFoto = () => document.getElementById("fullView").style.display = "none";
+window.baixarFoto = () => { const link = document.createElement("a"); link.href = document.getElementById("imgExpandida").src; link.download = "imagem_chat.png"; link.click(); };
+function prepararResposta(nome, texto) { respondendoA = { nome, texto }; const p = document.getElementById("replyPreview"); p.innerHTML = `Respondendo a ${nome}... <span onclick="cancelarResposta()">✕</span>`; p.style.display = "block"; }
 window.cancelarResposta = () => { respondendoA = null; document.getElementById("replyPreview").style.display = "none"; };
 
 function configurarGravador() {
@@ -327,27 +286,8 @@ function configurarGravador() {
         } catch (err) { alert("Ative o microfone!"); }
     };
     const parar = (e) => { if (gravando && mediaRecorder) { mediaRecorder.stop(); gravando = false; btn.classList.remove("recording"); } };
-    btn.addEventListener("pointerdown", iniciar);
-    btn.addEventListener("pointerup", parar);
-    btn.addEventListener("pointerleave", parar);
+    btn.addEventListener("pointerdown", iniciar); btn.addEventListener("pointerup", parar); btn.addEventListener("pointerleave", parar);
 }
-
-window.addVideoRemoto = (peerId, stream) => {
-    const grid = document.getElementById("callGrid");
-    let card = document.getElementById(`card_${peerId}`);
-    if (!card) {
-        card = document.createElement("div");
-        card.className = "video-card";
-        card.id = `card_${peerId}`;
-        grid.appendChild(card);
-    }
-    card.innerHTML = ""; 
-    const v = document.createElement("video");
-    v.autoplay = true; v.playsinline = true;
-    if(peerId === meuPeer.id) { v.muted = true; v.style.transform = "scaleX(-1)"; }
-    v.srcObject = stream;
-    card.appendChild(v);
-};
 
 window.entrarNaCall = async () => {
     document.getElementById("telaCall").classList.add("active");
@@ -367,60 +307,45 @@ window.entrarNaCall = async () => {
     } catch (e) { alert("Erro na câmera!"); }
 };
 
-window.toggleCam = () => {
-    if (streamLocal) {
-        camAtiva = !camAtiva;
-        streamLocal.getVideoTracks()[0].enabled = camAtiva;
-        document.getElementById("btnCam").classList.toggle("active-btn", camAtiva);
+window.addVideoRemoto = (peerId, stream) => {
+    const grid = document.getElementById("callGrid");
+    let card = document.getElementById(`card_${peerId}`);
+    if (!card) {
+        card = document.createElement("div");
+        card.className = "video-card";
+        card.id = `card_${peerId}`;
+        grid.appendChild(card);
     }
+    card.innerHTML = ""; 
+    const v = document.createElement("video");
+    v.autoplay = true; v.playsinline = true;
+    if(peerId === meuPeer.id) { v.muted = true; v.style.transform = "scaleX(-1)"; }
+    v.srcObject = stream;
+    card.appendChild(v);
 };
 
-window.sairChamada = async () => {
-    if(streamLocal) streamLocal.getTracks().forEach(t => t.stop());
-    await updateDoc(doc(db, "call", "global"), { participantes: arrayRemove(user.nome) });
-    location.reload();
-};
-
-function escutarCall() {
-    onSnapshot(doc(db, "call", "global"), (d) => {
-        const p = d.data()?.participantes || [];
-        const aviso = document.getElementById("avisoChatCall");
-        if(aviso && p.length > 0) {
-            aviso.innerHTML = `<div class="aviso-bubble" onclick="entrarNaCall()"><b>${p[0]} está em call!</b> Entrar (${p.length}/4)</div>`;
-        } else if(aviso) { aviso.innerHTML = ""; }
-    });
-}
-
+window.sairChamada = async () => { if(streamLocal) streamLocal.getTracks().forEach(t => t.stop()); await updateDoc(doc(db, "call", "global"), { participantes: arrayRemove(user.nome) }); location.reload(); };
+window.minimizarCall = () => { document.getElementById("telaCall").classList.remove("active"); document.getElementById("btnRetornarCall").style.display = "block"; };
+window.maximizarCall = () => { document.getElementById("telaCall").classList.add("active"); document.getElementById("btnRetornarCall").style.display = "none"; };
+function escutarCall() { onSnapshot(doc(db, "call", "global"), (d) => { const p = d.data()?.participantes || []; const aviso = document.getElementById("avisoChatCall"); if(aviso && p.length > 0) { aviso.innerHTML = `<div class="aviso-bubble" onclick="entrarNaCall()"><b>${p[0]} está em call!</b> Entrar (${p.length}/4)</div>`; } else if(aviso) { aviso.innerHTML = ""; } }); }
 window.abrirMenuMsg = (id, nome) => { msgSelecionadaId = id; msgSelecionadaNome = nome; document.getElementById("menuMsg").style.display = "flex"; };
 window.fecharMenuMsg = () => { document.getElementById("menuMsg").style.display = "none"; };
-window.confirmarApagar = async () => { 
-    if (msgSelecionadaNome === user.nome) {
-        await deleteDoc(doc(db, "mensagens", msgSelecionadaId));
-    } else {
-        msgsApagadasLocal.push(msgSelecionadaId);
-        localStorage.setItem("msgs_ocultas", JSON.stringify(msgsApagadasLocal));
-        escutarMensagens(); 
-    }
-    fecharMenuMsg(); 
-};
-window.enviarMsg = async () => {
-    const input = document.getElementById("msgInput");
-    if(!input.value.trim()) return;
-    await addDoc(collection(db,"mensagens"), { nome: user.nome, texto: input.value, replyTo: respondendoA, createdAt: serverTimestamp(), liked: false });
-    input.value = "";
-    cancelarResposta();
-    updateDoc(doc(db, "usuarios_online", user.nome), { digitando: false });
-};
+window.confirmarApagar = async () => { if (msgSelecionadaNome === user.nome) { await deleteDoc(doc(db, "mensagens", msgSelecionadaId)); } else { msgsApagadasLocal.push(msgSelecionadaId); localStorage.setItem("msgs_ocultas", JSON.stringify(msgsApagadasLocal)); escutarMensagens(); } fecharMenuMsg(); };
 window.salvarPerfil = () => { user.nome = editNome.value; user.bio = editBio.value; localStorage.setItem("user_completo", JSON.stringify(user)); alert("Salvo! ✨"); fecharPerfil(); };
 window.abrirPerfil = () => painelPerfil.style.display = "flex";
 window.fecharPerfil = () => painelPerfil.style.display = "none";
 window.fechar = () => { side.classList.remove("open"); btnFlutuante.style.display = "flex"; };
+function mostrarNotificacao() { const note = document.getElementById("notificacaoChat"); if(note) { note.classList.add("show"); setTimeout(() => note.classList.remove("show"), 3000); } }
+let typingTimer;
+window.aoDigitar = (input) => { checarAt(input); updateDoc(doc(db, "usuarios_online", user.nome), { digitando: true }); clearTimeout(typingTimer); typingTimer = setTimeout(() => { updateDoc(doc(db, "usuarios_online", user.nome), { digitando: false }); }, 2000); };
+window.checarAt = (input) => { const box = document.getElementById("atList"); const lastWord = input.value.split(" ").pop(); if (lastWord.startsWith("@")) { const busca = lastWord.slice(1).toLowerCase(); const filtrados = listaUsuarios.filter(u => u.toLowerCase().includes(busca) && u !== user.nome); if (filtrados.length > 0) { box.innerHTML = filtrados.map(u => `<div onclick="selecionarAt('${u}')">@${u}</div>`).join(""); box.style.display = "block"; } else { fecharAtList(); } } else { fecharAtList(); } };
+window.selecionarAt = (nome) => { const input = document.getElementById("msgInput"); const palavras = input.value.split(" "); palavras.pop(); input.value = palavras.join(" ") + " @" + nome + " "; fecharAtList(); input.focus(); };
+window.fecharAtList = () => { const box = document.getElementById("atList"); if(box) box.style.display = "none"; };
 </script>
 
 <style>
 :root { --main: #00f2ff; --bg: #000; }
 body { margin:0; background: var(--bg); color:#fff; font-family: sans-serif; height:100vh; overflow:hidden; }
-
 .gallery-btn { background: #0044ff; color: white; border: 2px solid var(--main); width: 45px; height: 45px; border-radius: 50%; font-size: 14px; cursor: pointer; flex-shrink: 0; }
 .img-mini { width: 120px; height: 120px; object-fit: cover; border-radius: 12px; cursor: pointer; margin-top: 5px; border: 1px solid #333; }
 .reply-preview { background: #111; padding: 8px; border-left: 3px solid var(--main); display: none; font-size: 12px; color: #aaa; }
@@ -428,22 +353,17 @@ body { margin:0; background: var(--bg); color:#fff; font-family: sans-serif; hei
 .full-image-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 5000; display: none; flex-direction: column; align-items: center; justify-content: center; }
 #imgExpandida { max-width: 90%; max-height: 70%; border-radius: 10px; box-shadow: 0 0 20px var(--main); }
 .save-photo-btn { margin-top: 20px; background: var(--main); color: #000; border: none; padding: 12px 25px; border-radius: 20px; font-weight: bold; cursor: pointer; }
-
 .btn-retornar-call { position: fixed; top: 10px; right: 10px; background: #22ee22; color: #000; padding: 10px 15px; border-radius: 20px; font-size: 12px; font-weight: bold; z-index: 1500; display: none; box-shadow: 0 0 10px #22ee22; animation: bounce 2s infinite; }
 @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
-
 .notificacao-top { position: fixed; top: -50px; left: 50%; transform: translateX(-50%); background: var(--main); color: #000; padding: 10px 20px; border-radius: 20px; font-weight: bold; transition: 0.5s; z-index: 5000; }
 .notificacao-top.show { top: 20px; }
-
 .status-digitando { font-size: 11px; color: var(--main); padding: 5px 15px; height: 15px; font-style: italic; }
 .at-box { position: absolute; bottom: 70px; left: 10px; background: #111; border: 1px solid var(--main); border-radius: 12px; width: 200px; display: none; z-index: 10; max-height: 150px; overflow-y: auto; }
 .private-msg { border: 1px dashed var(--main) !important; background: rgba(0, 242, 255, 0.05) !important; }
 .lock-icon { font-size: 9px; background: #222; color: var(--main); padding: 2px 6px; border-radius: 4px; margin-left: 5px; font-weight: bold; }
-
 .audio-btn { background: #222; border: none; font-size: 20px; width: 45px; height: 45px; border-radius: 50%; color: #fff; touch-action: none; }
 .audio-btn.recording { background: #ff4444; transform: scale(1.2); animation: pulse 1s infinite; }
 @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 68, 68, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(255, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 68, 68, 0); } }
-
 .aviso-bubble { background: var(--main); color: #000; padding: 10px; border-radius: 12px; text-align: center; font-weight: bold; cursor: pointer; margin-bottom: 5px; }
 .chat-header { display: flex; justify-content: space-between; align-items: center; padding: 15px; background: #111; border-bottom: 1px solid #222; }
 .icon-btn { background: #222; border: none; width: 45px; height: 45px; border-radius: 50%; color: var(--main); font-size: 20px; }
@@ -453,7 +373,6 @@ body { margin:0; background: var(--bg); color:#fff; font-family: sans-serif; hei
 .msg.me { background: var(--main); color: #000; align-self: flex-end; border: none; }
 .heart-pop { position: absolute; bottom: -8px; right: -5px; background: #000; border-radius: 50%; padding: 2px 5px; border: 1px solid #333; font-size: 14px; }
 audio { width: 200px; height: 40px; filter: invert(1); margin-top: 5px; }
-
 .call-overlay { position: fixed; inset: 0; background: #000; z-index: 2000; display: none; flex-direction: column; align-items: center; justify-content: center; }
 .call-overlay.active { display: flex; }
 .call-grid { display: grid; gap: 10px; width: 95%; height: 75vh; grid-template-columns: 1fr 1fr; }
@@ -462,15 +381,12 @@ video { width: 100%; height: 100%; object-fit: cover; }
 .btn-ctrl { width: 60px; height: 60px; border-radius: 50%; border: none; background: #222; color: #fff; font-size: 24px; }
 .active-btn { background: var(--main) !important; color: #000 !important; }
 .btn-hangup { background: #ff4444 !important; }
-
 .chat-bar { padding: 10px; background: #111; display: flex; gap: 10px; align-items: center; }
 .chat-bar input { flex:1; background:#000; border:1px solid #333; padding:12px; border-radius:20px; color:#fff; }
 .send-btn { background: var(--main); border: none; width: 45px; height: 45px; border-radius: 50%; font-size: 18px; }
-
 .menu-msg-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 3000; display: none; align-items: center; justify-content: center; }
 .menu-msg-box { background: #111; padding: 20px; border-radius: 20px; border: 1px solid var(--main); width: 200px; }
 .btn-apagar { background: #ff4444; color: white; border: none; padding: 12px; width: 100%; border-radius: 12px; font-weight: bold; }
-
 .perfil-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 3000; display: none; align-items: center; justify-content: center; }
 .perfil-box { width: 85%; background: #111; padding: 25px; border-radius: 25px; border: 1px solid var(--main); }
 .menu button { width: 65px; height: 65px; border-radius: 50%; font-size: 28px; background: var(--main); border: none; position: fixed; bottom: 30px; right: 25px; box-shadow: 0 0 15px var(--main); }
@@ -478,7 +394,6 @@ video { width: 100%; height: 100%; object-fit: cover; }
 .screen.active { opacity:1; pointer-events:all; }
 .panel { position: fixed; inset: 0; background: #000; transform: translateX(100%); transition: 0.3s; z-index: 500; }
 .panel.open { transform: translateX(0); }
-
 input, select, textarea { width: 100%; padding: 15px; margin-top: 10px; background: #000; border: 1px solid #222; border-radius: 12px; color: #fff; font-size: 16px; box-sizing: border-box; }
 textarea { height: 80px; resize: none; }
 input:focus, textarea:focus { border-color: var(--main); outline: none; }
