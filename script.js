@@ -101,3 +101,4 @@ document.getElementById('openChat').onclick = () => {
 
 // Inicializa ícones na carga inicial
 lucide.createIcons();
+
