@@ -9,7 +9,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import {
     getFirestore, collection, addDoc, onSnapshot,
-    query, orderBy, doc, setDoc, serverTimestamp, updateDoc, arrayUnion, arrayRemove, getDocs, deleteDoc
+    query, orderBy, doc, setDoc, serverTimestamp, updateDoc, arrayUnion, arrayRemove, getDocs, deleteDoc, deleteField
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -34,6 +34,7 @@ let gravando = false;
 let msgSelecionadaId = null;
 let msgSelecionadaNome = null;
 let listaUsuarios = [];
+let msgsApagadasLocal = JSON.parse(localStorage.getItem("msgs_ocultas")) || [];
 
 window.onload = () => {
     if(user && user.nome) startApp();
@@ -65,13 +66,28 @@ async function startApp() {
         }).catch(err => console.error("Erro ao atender:", err));
     });
 
-    await setDoc(doc(db, "usuarios_online", user.nome), { nome: user.nome, lastSeen: serverTimestamp() });
+    await setDoc(doc(db, "usuarios_online", user.nome), { nome: user.nome, lastSeen: serverTimestamp(), digitando: false });
     onSnapshot(collection(db, "usuarios_online"), snap => {
         listaUsuarios = [];
-        snap.forEach(d => listaUsuarios.push(d.data().nome));
+        let digitando = [];
+        snap.forEach(d => {
+            const data = d.data();
+            listaUsuarios.push(data.nome);
+            if(data.digitando && data.nome !== user.nome) digitando.push(data.nome);
+        });
+        atualizarDigitando(digitando);
     });
 
     setDoc(doc(db, "call", "global"), { participantes: [] }, { merge: true });
+}
+
+function atualizarDigitando(lista) {
+    const el = document.getElementById("statusDigitando");
+    if(!el) return;
+    if(lista.length === 0) el.innerText = "";
+    else if(lista.length === 1) el.innerText = `${lista[0]} está digitando...`;
+    else if(lista.length === 2) el.innerText = `${lista[0]} e ${lista[1]} estão digitando...`;
+    else el.innerText = "Várias pessoas digitando...";
 }
 
 window.abrirChat = () => {
@@ -87,11 +103,12 @@ window.abrirChat = () => {
     </div>
     <div class="chat-wrapper">
         <div id="chatMsgs"></div>
+        <div id="statusDigitando" class="status-digitando"></div>
         <div id="atList" class="at-box"></div>
         <div id="avisoChatCall" class="aviso-chat-bottom"></div>
         <div class="chat-bar">
             <button id="btnAudio" class="audio-btn">🎙️</button>
-            <input id="msgInput" placeholder="Manda a boa..." oninput="checarAt(this)">
+            <input id="msgInput" placeholder="Manda a boa..." oninput="aoDigitar(this)">
             <button class="send-btn" onclick="enviarMsg()">➤</button>
         </div>
     </div>
@@ -119,6 +136,16 @@ window.abrirChat = () => {
     escutarMensagens();
     escutarCall();
     configurarGravador();
+};
+
+let typingTimer;
+window.aoDigitar = (input) => {
+    checarAt(input);
+    updateDoc(doc(db, "usuarios_online", user.nome), { digitando: true });
+    clearTimeout(typingTimer);
+    typingTimer = setTimeout(() => {
+        updateDoc(doc(db, "usuarios_online", user.nome), { digitando: false });
+    }, 2000);
 };
 
 window.checarAt = (input) => {
@@ -154,6 +181,8 @@ function escutarMensagens() {
     onSnapshot(query(collection(db,"mensagens"),orderBy("createdAt", "asc")), snap => {
         box.innerHTML = "";
         snap.forEach(docSnap => {
+            if(msgsApagadasLocal.includes(docSnap.id)) return;
+
             const d = docSnap.data();
             const mencao = d.texto?.match(/@(\S+)/);
             const destino = mencao ? mencao[1] : null;
@@ -176,9 +205,12 @@ function escutarMensagens() {
                 div.ondblclick = (e) => { e.stopPropagation(); updateDoc(doc(db, "mensagens", docSnap.id), { liked: !d.liked }); };
                 
                 let timer;
-                div.addEventListener("pointerdown", () => { timer = setTimeout(() => abrirMenuMsg(docSnap.id, d.nome), 600); });
-                div.addEventListener("pointerup", () => clearTimeout(timer));
-                div.addEventListener("pointerleave", () => clearTimeout(timer));
+                const startTimer = () => { timer = setTimeout(() => abrirMenuMsg(docSnap.id, d.nome), 600); };
+                const endTimer = () => { clearTimeout(timer); };
+
+                div.addEventListener("pointerdown", startTimer);
+                div.addEventListener("pointerup", endTimer);
+                div.addEventListener("pointerleave", endTimer);
 
                 box.appendChild(div);
             }
@@ -218,7 +250,6 @@ function configurarGravador() {
     btn.addEventListener("pointerleave", parar);
 }
 
-// Funções de Call
 window.addVideoRemoto = (peerId, stream) => {
     const grid = document.getElementById("callGrid");
     let card = document.getElementById(`card_${peerId}`);
@@ -231,7 +262,10 @@ window.addVideoRemoto = (peerId, stream) => {
     card.innerHTML = ""; 
     const v = document.createElement("video");
     v.autoplay = true; v.playsinline = true;
-    v.muted = (peerId === meuPeer.id);
+    if(peerId === meuPeer.id) {
+        v.muted = true;
+        v.style.transform = "scaleX(-1)"; // Corrige câmera invertida
+    }
     v.srcObject = stream;
     card.appendChild(v);
 };
@@ -280,12 +314,22 @@ function escutarCall() {
 
 window.abrirMenuMsg = (id, nome) => { msgSelecionadaId = id; msgSelecionadaNome = nome; document.getElementById("menuMsg").style.display = "flex"; };
 window.fecharMenuMsg = () => { document.getElementById("menuMsg").style.display = "none"; };
-window.confirmarApagar = async () => { if (msgSelecionadaNome === user.nome) await deleteDoc(doc(db, "mensagens", msgSelecionadaId)); fecharMenuMsg(); };
+window.confirmarApagar = async () => { 
+    if (msgSelecionadaNome === user.nome) {
+        await deleteDoc(doc(db, "mensagens", msgSelecionadaId));
+    } else {
+        msgsApagadasLocal.push(msgSelecionadaId);
+        localStorage.setItem("msgs_ocultas", JSON.stringify(msgsApagadasLocal));
+        escutarMensagens(); // Recarrega a vista
+    }
+    fecharMenuMsg(); 
+};
 window.enviarMsg = async () => {
     const input = document.getElementById("msgInput");
     if(!input.value.trim()) return;
     await addDoc(collection(db,"mensagens"), { nome: user.nome, texto: input.value, createdAt: serverTimestamp(), liked: false });
     input.value = "";
+    updateDoc(doc(db, "usuarios_online", user.nome), { digitando: false });
 };
 window.salvarPerfil = () => { user.nome = editNome.value; user.bio = editBio.value; localStorage.setItem("user_completo", JSON.stringify(user)); alert("Salvo! ✨"); fecharPerfil(); };
 window.abrirPerfil = () => painelPerfil.style.display = "flex";
@@ -297,11 +341,10 @@ window.fechar = () => { side.classList.remove("open"); btnFlutuante.style.displa
 :root { --main: #00f2ff; --bg: #000; }
 body { margin:0; background: var(--bg); color:#fff; font-family: sans-serif; height:100vh; overflow:hidden; }
 
-/* @ Mencionar */
+.status-digitando { font-size: 11px; color: var(--main); padding: 5px 15px; height: 15px; font-style: italic; }
 .at-box { position: absolute; bottom: 70px; left: 10px; background: #111; border: 1px solid var(--main); border-radius: 12px; width: 200px; display: none; z-index: 10; max-height: 150px; overflow-y: auto; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
 .at-box div { padding: 12px; border-bottom: 1px solid #222; cursor: pointer; font-size: 14px; color: var(--main); }
 
-/* Msg Privada */
 .private-msg { border: 1px dashed var(--main) !important; background: rgba(0, 242, 255, 0.05) !important; }
 .lock-icon { font-size: 9px; background: #222; color: var(--main); padding: 2px 6px; border-radius: 4px; margin-left: 5px; font-weight: bold; }
 
@@ -344,6 +387,15 @@ video { width: 100%; height: 100%; object-fit: cover; }
 .screen.active { opacity:1; pointer-events:all; }
 .panel { position: fixed; inset: 0; background: #000; transform: translateX(100%); transition: 0.3s; z-index: 500; }
 .panel.open { transform: translateX(0); }
+
+input, select, textarea { width: 100%; padding: 15px; margin-top: 10px; background: #000; border: 1px solid #222; border-radius: 12px; color: #fff; font-size: 16px; box-sizing: border-box; }
+textarea { height: 80px; resize: none; }
+input:focus, textarea:focus { border-color: var(--main); outline: none; }
+.save-btn { background: var(--main); color: #000; border: none; padding: 15px; width: 100%; border-radius: 12px; font-weight: bold; margin-top: 20px; cursor: pointer; }
+.avatar-grande { width: 80px; height: 80px; background: #222; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 40px; margin: 0 auto 15px; border: 2px solid var(--main); }
+.voltar-btn { background: none; border: none; color: #fff; font-size: 20px; cursor: pointer; }
+#chatMsgs { scroll-behavior: smooth; }
+button:active { transform: scale(0.95); }
 </style>
 </head>
 <body>
@@ -361,92 +413,18 @@ video { width: 100%; height: 100%; object-fit: cover; }
     <div id="btnFlutuante" class="menu"><button onclick="abrirChat()">💬</button></div>
     <div id="side" class="panel"><div id="sideContent" style="height:100%; display:flex; flex-direction:column;"></div></div>
 </div>
-<style>
-    /* Estilização dos campos de entrada de registro e perfil */
-    input, select, textarea {
-        width: 100%;
-        padding: 15px;
-        margin-top: 10px;
-        background: #000;
-        border: 1px solid #222;
-        border-radius: 12px;
-        color: #fff;
-        font-size: 16px;
-        box-sizing: border-box;
-    }
-
-    textarea { height: 80px; resize: none; }
-
-    input:focus, textarea:focus {
-        border-color: var(--main);
-        outline: none;
-    }
-
-    .save-btn {
-        background: var(--main);
-        color: #000;
-        border: none;
-        padding: 15px;
-        width: 100%;
-        border-radius: 12px;
-        font-weight: bold;
-        margin-top: 20px;
-        cursor: pointer;
-    }
-
-    .avatar-grande {
-        width: 80px;
-        height: 80px;
-        background: #222;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 40px;
-        margin: 0 auto 15px;
-        border: 2px solid var(--main);
-    }
-
-    .voltar-btn {
-        background: none;
-        border: none;
-        color: #fff;
-        font-size: 20px;
-        cursor: pointer;
-    }
-
-    /* Ajuste para o scroll suave */
-    #chatMsgs {
-        scroll-behavior: smooth;
-    }
-
-    /* Efeito de clique nos botões */
-    button:active {
-        transform: scale(0.95);
-    }
-</style>
 
 <script>
-    // Função adicional para garantir que o usuário apareça como online ao entrar
     async function atualizarStatusOnline() {
         if (user.nome) {
             await setDoc(doc(db, "usuarios_online", user.nome), {
                 nome: user.nome,
                 lastSeen: serverTimestamp()
-            });
+            }, {merge: true});
         }
     }
-
-    // Executa a atualização de status a cada 1 minuto
     setInterval(atualizarStatusOnline, 60000);
-
-    // Bloqueia o fechamento acidental da aba se estiver em call
-    window.onbeforeunload = () => {
-        if (document.getElementById("telaCall").classList.contains("active")) {
-            return "Você está em uma chamada! Deseja realmente sair?";
-        }
-    };
 </script>
-
 </body>
 </html>
+
