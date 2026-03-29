@@ -1,124 +1,98 @@
-:root {
-    --bg: #030509; /* Mais profundo */
-    --card-bg: rgba(10, 15, 28, 0.95); /* Menos transparente */
-    --primary: #22d3ee;
-    --secondary: #d946ef;
-    --text: #f8fafc;
-    --border: rgba(255, 255, 255, 0.12); /* Mais visível */
+// 1. Configuração do seu Firebase
+const firebaseConfig = {
+    apiKey: "AIzaSyAjH1kVPCZHqZRzu9AszDKiD9csdEmSz_c",
+    authDomain: "chat-app-c974a.firebaseapp.com",
+    databaseURL: "https://chat-app-c974a-default-rtdb.firebaseio.com",
+    projectId: "chat-app-c974a",
+    storageBucket: "chat-app-c974a.appspot.com",
+    appId: "1:753329556773:web:4511da13d5355efca81ecc"
+};
+
+// Inicializa Firebase
+firebase.initializeApp(firebaseConfig);
+const database = firebase.database();
+
+let usuario = { nome: "", dataNasc: "", genero: "", bio: "" };
+
+// Função Calcular Idade
+function calcIdade(d) {
+    const hoje = new Date();
+    const n = new Date(d);
+    let i = hoje.getFullYear() - n.getFullYear();
+    if (hoje.getMonth() < n.getMonth() || (hoje.getMonth() === n.getMonth() && hoje.getDate() < n.getDate())) i--;
+    return i;
 }
 
-* { margin: 0; padding: 0; box-sizing: border-box; font-family: sans-serif; }
+// Registro
+document.getElementById('profileForm').onsubmit = (e) => {
+    e.preventDefault();
+    const dataVal = document.getElementById('regData').value;
+    if (calcIdade(dataVal) < 10) return alert("Menores de 10 não entram!");
 
-body { 
-    background: var(--bg); 
-    color: var(--text); 
-    height: 100vh; 
-    overflow: hidden; 
-    display: flex; /* Garante flexbox */
-}
+    usuario = {
+        nome: document.getElementById('regNome').value,
+        dataNasc: new Date(dataVal).toLocaleDateString('pt-BR'),
+        genero: document.getElementById('regGenero').value,
+        bio: document.getElementById('regBio').value
+    };
 
-/* Fundo Animado - Melhorei a cor */
-.glow-container .ball {
-    position: absolute; width: 500px; height: 500px; border-radius: 50%;
-    filter: blur(100px); z-index: -1; opacity: 0.25; animation: move 20s infinite alternate;
-}
-.ball:nth-child(1) { background: var(--primary); top: -20%; left: -20%; }
-.ball:nth-child(2) { background: var(--secondary); bottom: -20%; right: -20%; }
-@keyframes move { from { transform: translate(0,0); } to { transform: translate(80px, 80px); } }
+    document.getElementById('registerScreen').classList.remove('active');
+    document.getElementById('appScreen').classList.add('active');
+    lucide.createIcons();
+};
 
-/* ESTRUTURA DE TELAS - Forçando Tela Cheia */
-.full-screen {
-    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; 
-    display: flex; align-items: center; justify-content: center;
-    opacity: 0; pointer-events: none; transition: 0.5s;
-    z-index: 10;
-}
-.full-screen.active { opacity: 1; pointer-events: all; }
+const panel = document.getElementById('sidePanel');
+const content = document.getElementById('panelContent');
 
-/* TELA DE REGISTRO - Visual Rico */
-.main-card { 
-    width: 85%; max-width: 400px; text-align: center;
-    background: var(--card-bg); backdrop-filter: blur(15px); 
-    border: 1px solid var(--border); border-radius: 20px; 
-    padding: 25px; 
-    box-shadow: 0 15px 35px rgba(0,0,0,0.7);
+function abrir(id, fn) {
+    content.innerHTML = document.getElementById(id).innerHTML;
+    if(fn) fn();
+    panel.classList.add('open');
+    lucide.createIcons();
 }
 
-.grid-inputs { display: flex; flex-direction: column; gap: 12px; text-align: left; }
+document.getElementById('closePanel').onclick = () => panel.classList.remove('open');
 
-.input-wrapper { 
-    position: relative; background: rgba(255,255,255,0.02); 
-    border: 1px solid var(--border); border-radius: 8px; 
-    padding: 6px 10px; display: flex; align-items: center;
-    transition: 0.2s;
-}
-.input-wrapper:focus-within { border-color: var(--primary); background: rgba(255,255,255,0.06); }
-.input-wrapper i { margin-right: 8px; color: #64748b; font-size: 14px; }
+// Perfil
+document.getElementById('openProfile').onclick = () => {
+    abrir('profileTemplate', () => {
+        document.getElementById('pNome').innerText = usuario.nome;
+        document.getElementById('pData').innerText = usuario.dataNasc;
+        document.getElementById('pGenero').innerText = usuario.genero;
+        document.getElementById('pBio').innerText = usuario.bio;
+    });
+};
 
-.input-wrapper input, .input-wrapper textarea, .input-wrapper select { 
-    background: transparent; border: none; color: white; width: 100%; 
-    outline: none; padding: 6px 0; font-size: 14px;
-}
-/* Força cor branca para placeholders no celular */
-.input-wrapper input::placeholder, .input-wrapper textarea::placeholder { color: #64748b; }
+// CHAT FUNCIONANDO COM FIREBASE
+document.getElementById('openChat').onclick = () => {
+    document.querySelector('.notification-badge').style.display = 'none';
+    abrir('chatTemplate', () => {
+        const btn = document.getElementById('sendMsg');
+        const input = document.getElementById('chatInput');
+        const box = document.getElementById('chatMessages');
 
-.btn-shine { 
-    width: 100%; padding: 12px; margin-top: 15px; 
-    border: none; border-radius: 8px; 
-    background: linear-gradient(90deg, var(--primary), var(--secondary)); 
-    color: white; font-weight: bold; cursor: pointer; font-size: 14px;
-    box-shadow: 0 5px 15px rgba(34,211,238,0.3);
-}
+        // Enviar para o Firebase
+        btn.onclick = () => {
+            if(!input.value.trim()) return;
+            database.ref('mensagens').push({
+                user: usuario.nome,
+                text: input.value,
+                time: Date.now()
+            });
+            input.value = '';
+        };
 
-/* TELA DO APP - Ícones Rico */
-.actions-bar { 
-    position: fixed; top: 15px; right: 15px; 
-    display: flex; flex-direction: column; gap: 8px; 
-    z-index: 100;
-}
-.action-btn { 
-    width: 45px; height: 45px; border-radius: 10px; 
-    background: var(--card-bg); border: 1px solid var(--border); 
-    color: white; cursor: pointer; position: relative; 
-    backdrop-filter: blur(5px);
-}
-.action-btn:hover { border-color: var(--primary); color: var(--primary); }
-.notification-badge { 
-    position: absolute; top: 4px; right: 4px; width: 6px; height: 6px; 
-    background: var(--secondary); border-radius: 50%; 
-    box-shadow: 0 0 5px var(--secondary);
-}
+        // Ouvir o Firebase em tempo real
+        database.ref('mensagens').limitToLast(20).on('child_added', (snapshot) => {
+            const data = snapshot.val();
+            const div = document.createElement('div');
+            div.className = 'msg-bubble';
+            div.innerHTML = `<b>${data.user}</b>${data.text}`;
+            box.appendChild(div);
+            box.scrollTop = box.scrollHeight;
+        });
+    });
+};
 
-/* Conteúdo de Bem-Vindo */
-.app-content { text-align: center; }
-.welcome-text { 
-    font-size: 2rem; margin-bottom: 10px;
-    background: linear-gradient(to right, #fff, #94a3b8); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-}
+lucide.createIcons();
 
-/* PAINEL LATERAL - Rico */
-.side-panel { 
-    position: fixed; top: 0; right: -350px; width: 300px; 
-    height: 100vh; transition: 0.3s; z-index: 200; 
-    display: flex; flex-direction: column;
-    background: rgba(10, 15, 28, 0.98); backdrop-filter: blur(15px);
-    border: 1px solid var(--border); border-right: none;
-    border-radius: 15px 0 0 15px;
-    padding: 20px;
-}
-.side-panel.open { right: 0; }
-.close-panel { 
-    position: absolute; top: 10px; left: 10px; background: none; 
-    border: none; color: white; font-size: 20px; cursor: pointer; 
-}
-
-/* CHAT - Rico */
-.chat-wrapper { flex: 1; display: flex; flex-direction: column; margin-top: 30px; }
-.chat-messages { flex: 1; overflow-y: auto; margin-bottom: 8px; display: flex; flex-direction: column; gap: 6px; }
-.msg-bubble { 
-    padding: 6px 10px; border-radius: 8px; font-size: 13px; 
-    background: rgba(255,255,255,0.05); color: #fff; align-self: flex-start; max-width: 80%; 
-}
-.chat-input-area { display: flex; gap: 4px; }
-.chat-input-area input { flex: 1; padding: 8px; border-radius: 5px; border: 1px solid var(--border); background: #000; color: white; font-size: 13px; }
-.chat-input-area button { padding: 8px; background: var(--primary); border: none; border-radius: 5px; cursor: pointer; }
