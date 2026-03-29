@@ -1,199 +1,116 @@
-<!DOCTYPE html>
-<html lang="pt-br">
+<!DOCTYPE html><html lang="pt-br">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Premium Social App</title>
-    
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>App Social</title><script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script><script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script><style>
+body{margin:0;background:#05070a;color:#fff;font-family:sans-serif}
+.screen{position:fixed;inset:0;display:flex;justify-content:center;align-items:center;opacity:0;pointer-events:none}
+.screen.active{opacity:1;pointer-events:all}
+.box{background:#111;padding:20px;border-radius:15px;width:90%;max-width:400px}
+input,select,textarea{width:100%;margin:5px 0;padding:10px;background:#222;border:none;color:#fff;border-radius:8px}
+button{width:100%;padding:12px;margin-top:10px;border:none;border-radius:10px;background:#00f2ff;color:#000}
+.menu{position:fixed;top:20px;right:20px}
+.panel{position:fixed;right:-100%;top:0;width:100%;height:100%;background:#000;transition:.3s;padding:20px;display:flex;flex-direction:column}
+.panel.open{right:0}
+.msg{background:#111;margin:5px;padding:10px;border-radius:10px}
+.chat-bar{display:flex;gap:5px}
+.chat-bar input{flex:1}
+</style></head><body><div id="scrReg" class="screen active">
+<div class="box">
+<h3>Cadastro</h3>
+<form id="formReg">
+<input id="n" placeholder="Nome" required>
+<input type="date" id="d" required>
+<select id="g"><option>Gênero</option></select>
+<textarea id="b" placeholder="Bio"></textarea>
+<button>Entrar</button>
+</form>
+</div>
+</div><div id="scrApp" class="screen">
+<div class="menu">
+<button onclick="openChat()">💬</button>
+<button onclick="openPerfil()">👤</button>
+</div><h2 id="wlc"></h2><div id="side" class="panel">
+<button onclick="fechar()">Voltar</button>
+<div id="content"></div>
+</div>
+</div><script>
+const firebaseConfig={
+apiKey:"AIzaSyAjH1kVPCZHqZRzu9AszDKiD9csdEmSz_c",
+databaseURL:"https://chat-app-c974a-default-rtdb.firebaseio.com"
+};
+firebase.initializeApp(firebaseConfig);
+const db=firebase.database();
 
-    <style>
-        :root {
-            --bg: #05070a;
-            --card: rgba(15, 20, 35, 0.95);
-            --primary: #00f2ff;
-            --secondary: #bc13fe;
-            --text: #ffffff;
-            --border: rgba(255, 255, 255, 0.08);
-        }
+let user={},chatRef=null;
 
-        /* Reset e Base */
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; -webkit-tap-highlight-color: transparent; }
-        body { background: var(--bg); color: var(--text); height: 100vh; width: 100vw; overflow: hidden; position: fixed; }
+const saved=localStorage.getItem("user");
+if(saved){
+user=JSON.parse(saved);
+start();
+}
 
-        /* Fundo Neon Animado */
-        .glow { position: absolute; width: 300px; height: 300px; border-radius: 50%; filter: blur(80px); opacity: 0.15; z-index: -1; animation: float 15s infinite alternate; }
-        .g1 { background: var(--primary); top: -10%; left: -10%; }
-        .g2 { background: var(--secondary); bottom: -10%; right: -10%; }
-        @keyframes float { from { transform: translate(0,0); } to { transform: translate(60px, 60px); } }
+formReg.onsubmit=e=>{
+e.preventDefault();
 
-        /* Sistema de Telas */
-        .screen { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: 0.5s; z-index: 10; }
-        .screen.active { opacity: 1; pointer-events: all; }
+let birth=new Date(d.value);
+let age=new Date().getFullYear()-birth.getFullYear();
 
-        .glass { background: var(--card); backdrop-filter: blur(25px); border: 1px solid var(--border); border-radius: 28px; box-shadow: 0 25px 50px rgba(0,0,0,0.5); }
-        
-        /* Card de Registro */
-        .reg-card { width: 92%; max-width: 400px; padding: 40px 30px; text-align: center; }
-        h1 { font-size: 26px; margin-bottom: 8px; letter-spacing: -1px; }
-        p.subtitle { color: #888; font-size: 14px; margin-bottom: 25px; }
+if(age<10){alert("mínimo 10 anos");return;}
 
-        .input-group { display: flex; flex-direction: column; gap: 12px; text-align: left; }
-        .field { background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 14px; padding: 14px; display: flex; align-items: center; gap: 12px; }
-        .field input, .field select, .field textarea { background: transparent; border: none; color: white; width: 100%; font-size: 16px; outline: none; }
-        .field i { color: var(--primary); width: 20px; }
+user={nome:n.value,bio:b.value};
+localStorage.setItem("user",JSON.stringify(user));
+start();
+};
 
-        .btn { width: 100%; padding: 16px; margin-top: 25px; border: none; border-radius: 14px; background: linear-gradient(135deg, var(--primary), var(--secondary)); color: white; font-weight: 700; cursor: pointer; box-shadow: 0 10px 20px rgba(188, 19, 254, 0.2); font-size: 16px; }
+function start(){
+scrReg.classList.remove("active");
+scrApp.classList.add("active");
+wlc.innerText="Olá "+user.nome;
+}
 
-        /* Menu de Ações */
-        .menu { position: fixed; top: 25px; right: 25px; display: flex; flex-direction: column; gap: 15px; z-index: 50; }
-        .m-btn { width: 55px; height: 55px; border-radius: 16px; background: var(--card); border: 1px solid var(--border); color: white; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+function openChat(){
 
-        /* Painel Lateral (Chat/Perfil) */
-        .panel { position: fixed; top: 0; right: -100%; width: 100%; height: 100%; transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1); z-index: 100; background: #05070a; padding: 25px; display: flex; flex-direction: column; }
-        .panel.open { right: 0; }
-        .back-btn { display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.05); border: none; color: #fff; padding: 10px 15px; border-radius: 12px; margin-bottom: 30px; font-size: 16px; align-self: flex-start; }
+if(chatRef) chatRef.off();
 
-        /* Chat Estilizado */
-        #chatMsgs { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding-bottom: 20px; }
-        .msg { background: rgba(255,255,255,0.05); padding: 14px; border-radius: 18px 18px 18px 4px; max-width: 85%; border: 1px solid var(--border); }
-        .msg b { color: var(--primary); font-size: 11px; display: block; margin-bottom: 4px; text-transform: uppercase; }
+content.innerHTML=`
+<h2>Chat</h2>
+<div id="msgs"></div>
+<div class="chat-bar">
+<input id="msg">
+<button onclick="send()">Enviar</button>
+</div>`;
 
-        .chat-bar { display: flex; gap: 10px; padding: 15px 0; border-top: 1px solid var(--border); }
-        .chat-bar input { flex: 1; background: #111; border: 1px solid var(--border); border-radius: 14px; padding: 16px; color: white; outline: none; font-size: 16px; }
-        .chat-bar button { width: 55px; height: 55px; background: var(--primary); border: none; border-radius: 14px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
-    </style>
-</head>
-<body>
-    <div class="glow g1"></div><div class="glow g2"></div>
+side.classList.add("open");
 
-    <div id="scrReg" class="screen active">
-        <div class="reg-card glass">
-            <h1>Crie sua Conta</h1>
-            <p class="subtitle">Apenas para maiores de 10 anos.</p>
-            <form id="formReg">
-                <div class="input-group">
-                    <div class="field"><i data-lucide="user"></i><input type="text" id="n" placeholder="Nome Completo" required></div>
-                    <div class="field"><i data-lucide="calendar"></i><input type="date" id="d" required></div>
-                    <div class="field">
-                        <i data-lucide="venn-diagram"></i>
-                        <select id="g" required>
-                            <option value="" disabled selected>Gênero</option>
-                            <option value="Masculino">Masculino</option>
-                            <option value="Feminino">Feminino</option>
-                        </select>
-                    </div>
-                    <div class="field"><i data-lucide="align-left"></i><textarea id="b" placeholder="Sua bio..." rows="2" required></textarea></div>
-                </div>
-                <button type="submit" class="btn">ENTRAR NO APP</button>
-            </form>
-        </div>
-    </div>
+chatRef=db.ref("msgs").limitToLast(50);
 
-    <div id="scrApp" class="screen">
-        <div class="menu">
-            <button class="m-btn" id="btnP"><i data-lucide="user"></i></button>
-            <button class="m-btn" id="btnC"><i data-lucide="message-circle"></i></button>
-        </div>
-        <div style="text-align:center">
-            <h1 id="wlc">Bem-vindo!</h1>
-            <p style="color:#666">Toque nos ícones para navegar.</p>
-        </div>
+chatRef.on("child_added",s=>{
+let d=s.val();
+let div=document.createElement("div");
+div.className="msg";
+div.innerHTML="<b>"+d.u+"</b><br>"+d.t;
+msgs.appendChild(div);
+msgs.scrollTop=msgs.scrollHeight;
+});
+}
 
-        <div id="side" class="panel">
-            <button class="back-btn" id="close"><i data-lucide="chevron-left"></i> Voltar</button>
-            <div id="sideContent"></div>
-        </div>
-    </div>
+function send(){
+let input=document.getElementById("msg");
+if(!input.value.trim())return;
 
-    <script>
-        // Configuração do Firebase
-        const firebaseConfig = {
-            apiKey: "AIzaSyAjH1kVPCZHqZRzu9AszDKiD9csdEmSz_c",
-            authDomain: "chat-app-c974a.firebaseapp.com",
-            databaseURL: "https://chat-app-c974a-default-rtdb.firebaseio.com",
-            projectId: "chat-app-c974a",
-            storageBucket: "chat-app-c974a.appspot.com",
-            appId: "1:753329556773:web:4511da13d5355efca81ecc"
-        };
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
-        
-        let user = {};
+db.ref("msgs").push({u:user.nome,t:input.value});
+input.value="";
+}
 
-        // Lógica de Registro e Idade
-        document.getElementById('formReg').onsubmit = (e) => {
-            e.preventDefault();
-            const birth = new Date(document.getElementById('d').value);
-            const age = new Date().getFullYear() - birth.getFullYear();
-            
-            if(age < 10) {
-                alert("Você precisa ter pelo menos 10 anos.");
-                return;
-            }
+function openPerfil(){
+content.innerHTML="<h2>"+user.nome+"</h2><p>"+user.bio+"</p>";
+side.classList.add("open");
+}
 
-            user = { 
-                nome: document.getElementById('n').value,
-                bio: document.getElementById('b').value 
-            };
-
-            document.getElementById('scrReg').classList.remove('active');
-            document.getElementById('scrApp').classList.add('active');
-            document.getElementById('wlc').innerText = "Olá, " + user.nome;
-            lucide.createIcons();
-        };
-
-        const side = document.getElementById('side');
-        const cont = document.getElementById('sideContent');
-
-        // Lógica do Chat Global
-        document.getElementById('btnC').onclick = () => {
-            cont.innerHTML = `
-                <h2 style="margin-bottom:20px">Chat Global</h2>
-                <div id="chatMsgs"></div>
-                <div class="chat-bar">
-                    <input id="mi" placeholder="Sua mensagem..." autocomplete="off">
-                    <button id="ms"><i data-lucide="send"></i></button>
-                </div>`;
-            side.classList.add('open');
-            lucide.createIcons();
-
-            const input = document.getElementById('mi');
-            document.getElementById('ms').onclick = () => {
-                if(!input.value.trim()) return;
-                db.ref('msgs').push({ u: user.nome, t: input.value });
-                input.value = '';
-            };
-
-            db.ref('msgs').limitToLast(30).on('child_added', s => {
-                const data = s.val();
-                const m = document.createElement('div');
-                m.className = 'msg';
-                m.innerHTML = `<b>${data.u}</b>${data.t}`;
-                const box = document.getElementById('chatMsgs');
-                if(box) {
-                    box.appendChild(m);
-                    box.scrollTop = box.scrollHeight;
-                }
-            });
-        };
-
-        // Lógica do Perfil
-        document.getElementById('btnP').onclick = () => {
-            cont.innerHTML = `
-                <h2>Meu Perfil</h2>
-                <div style="margin-top:20px; background:rgba(255,255,255,0.03); padding:20px; border-radius:15px; border-left:4px solid var(--primary)">
-                    <p><strong>Nome:</strong> ${user.nome}</p>
-                    <p style="margin-top:10px; color:#aaa">${user.bio}</p>
-                </div>`;
-            side.classList.add('open');
-        };
-
-        document.getElementById('close').onclick = () => side.classList.remove('open');
-        lucide.createIcons();
-    </script>
-</body>
+function fechar(){
+side.classList.remove("open");
+if(chatRef) chatRef.off();
+}
+</script></body>
 </html>
-
