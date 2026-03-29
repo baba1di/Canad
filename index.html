@@ -4,87 +4,156 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Premium Social App</title>
-    
-    <link rel="stylesheet" href="style.css">
-    
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
+
+    <style>
+        :root {
+            --bg: #05070a;
+            --card: rgba(15, 20, 35, 0.95);
+            --primary: #00f2ff;
+            --secondary: #bc13fe;
+            --text: #ffffff;
+            --border: rgba(255, 255, 255, 0.08);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; -webkit-tap-highlight-color: transparent; }
+        body { background: var(--bg); color: var(--text); height: 100vh; width: 100vw; overflow: hidden; position: fixed; }
+
+        /* Fundo Neon Animado */
+        .glow { position: absolute; width: 300px; height: 300px; border-radius: 50%; filter: blur(80px); opacity: 0.15; z-index: -1; animation: float 15s infinite alternate; }
+        .g1 { background: var(--primary); top: -10%; left: -10%; }
+        .g2 { background: var(--secondary); bottom: -10%; right: -10%; }
+        @keyframes float { from { transform: translate(0,0); } to { transform: translate(60px, 60px); } }
+
+        /* Telas */
+        .screen { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: 0.5s; z-index: 10; }
+        .screen.active { opacity: 1; pointer-events: all; }
+
+        .glass { background: var(--card); backdrop-filter: blur(25px); border: 1px solid var(--border); border-radius: 28px; box-shadow: 0 25px 50px rgba(0,0,0,0.5); }
+        .reg-card { width: 92%; max-width: 400px; padding: 40px 30px; text-align: center; }
+
+        h1 { font-size: 26px; margin-bottom: 8px; letter-spacing: -1px; }
+        p.subtitle { color: #888; font-size: 14px; margin-bottom: 25px; }
+
+        .input-group { display: flex; flex-direction: column; gap: 12px; text-align: left; }
+        .field { background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 14px; padding: 14px; display: flex; align-items: center; gap: 12px; }
+        .field input, .field select, .field textarea { background: transparent; border: none; color: white; width: 100%; font-size: 16px; outline: none; }
+
+        .btn { width: 100%; padding: 16px; margin-top: 25px; border: none; border-radius: 14px; background: linear-gradient(135deg, var(--primary), var(--secondary)); color: white; font-weight: 700; cursor: pointer; box-shadow: 0 10px 20px rgba(188, 19, 254, 0.2); }
+
+        /* Side Panel */
+        .panel { position: fixed; top: 0; right: -100%; width: 100%; height: 100%; transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1); z-index: 100; background: #05070a; padding: 25px; display: flex; flex-direction: column; }
+        .panel.open { right: 0; }
+        .back-btn { display: flex; align-items: center; gap: 8px; background: none; border: none; color: #888; margin-bottom: 30px; font-size: 16px; }
+
+        /* Chat */
+        #chatMsgs { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding-bottom: 20px; }
+        .msg { background: rgba(255,255,255,0.05); padding: 14px; border-radius: 18px 18px 18px 4px; max-width: 85%; border: 1px solid var(--border); }
+        .msg b { color: var(--primary); font-size: 11px; display: block; margin-bottom: 4px; text-transform: uppercase; }
+
+        .chat-bar { display: flex; gap: 10px; padding: 15px 0; border-top: 1px solid var(--border); }
+        .chat-bar input { flex: 1; background: #111; border: 1px solid var(--border); border-radius: 14px; padding: 16px; color: white; outline: none; }
+        .chat-bar button { width: 55px; height: 55px; background: var(--primary); border: none; border-radius: 14px; display: flex; align-items: center; justify-content: center; }
+
+        /* Menu */
+        .menu { position: fixed; top: 25px; right: 25px; display: flex; flex-direction: column; gap: 15px; z-index: 50; }
+        .m-btn { width: 55px; height: 55px; border-radius: 16px; background: var(--card); border: 1px solid var(--border); color: white; display: flex; align-items: center; justify-content: center; }
+    </style>
 </head>
 <body>
-    
-    <div class="glow-container">
-        <div class="ball"></div>
-        <div class="ball"></div>
-    </div>
+    <div class="glow g1"></div><div class="glow g2"></div>
 
-    <div id="registerScreen" class="full-screen active">
-        <main class="main-card glass-card">
-            <div class="card-header">
-                <div class="icon-box gradient-1"><i data-lucide="user-plus"></i></div>
-                <h1>Crie sua Conta</h1>
-                <p>Mínimo 10 anos para acessar.</p>
-            </div>
-            <form id="profileForm">
-                <div class="grid-inputs">
-                    <div class="input-wrapper"><i data-lucide="user"></i><input type="text" id="regNome" placeholder="Nome Completo" required></div>
-                    <div class="input-wrapper"><i data-lucide="calendar"></i><input type="date" id="regData" required></div>
-                    <div class="input-wrapper">
+    <div id="scrReg" class="screen active">
+        <div class="reg-card glass">
+            <h1>Premium Access</h1>
+            <p class="subtitle">Apenas para maiores de 10 anos.</p>
+            <form id="formReg">
+                <div class="input-group">
+                    <div class="field"><i data-lucide="user"></i><input type="text" id="n" placeholder="Nome" required></div>
+                    <div class="field"><i data-lucide="calendar"></i><input type="date" id="d" required></div>
+                    <div class="field">
                         <i data-lucide="venn-diagram"></i>
-                        <select id="regGenero" required>
-                            <option value="" disabled selected>Gênero</option>
+                        <select id="g" required>
                             <option value="Masculino">Masculino</option>
                             <option value="Feminino">Feminino</option>
-                            <option value="Outro">Outro</option>
                         </select>
                     </div>
-                    <div class="input-wrapper"><i data-lucide="align-left"></i><textarea id="regBio" placeholder="Sua Bio..." rows="2" required></textarea></div>
                 </div>
-                <button type="submit" class="btn-shine">ENTRAR NO APP</button>
+                <button type="submit" class="btn">ENTRAR NO APP</button>
             </form>
-        </main>
-    </div>
-
-    <div id="appScreen" class="full-screen">
-        <div class="actions-bar">
-            <button class="action-btn" id="openProfile"><i data-lucide="settings"></i></button>
-            <button class="action-btn" id="openChat">
-                <i data-lucide="message-square"></i>
-                <span class="notification-badge"></span>
-            </button>
-        </div>
-        <div class="app-content">
-            <h1 class="welcome-text">Bem-vindo.</h1>
-            <p>Toque nos ícones laterais.</p>
-        </div>
-        
-        <div id="sidePanel" class="side-panel">
-            <button class="close-panel" id="closePanel"><i data-lucide="arrow-left"></i> Voltar</button>
-            <div id="panelContent"></div>
         </div>
     </div>
 
-    <script type="text/template" id="profileTemplate">
-        <h2>Meu Perfil</h2>
-        <div class="profile-details">
-            <div class="detail-item"><strong>Nome:</strong> <span id="pNome"></span></div>
-            <div class="detail-item"><strong>Nascimento:</strong> <span id="pData"></span></div>
-            <div class="detail-item"><strong>Gênero:</strong> <span id="pGenero"></span></div>
-            <div class="bio-box"><strong>Bio:</strong><p id="pBio"></p></div>
+    <div id="scrApp" class="screen">
+        <div class="menu">
+            <button class="m-btn" id="btnP"><i data-lucide="user"></i></button>
+            <button class="m-btn" id="btnC"><i data-lucide="message-circle"></i></button>
         </div>
-    </script>
-
-    <script type="text/template" id="chatTemplate">
-        <h2>Chat Global</h2>
-        <div class="chat-wrapper">
-            <div id="chatMessages" class="chat-messages"></div>
-            <div class="chat-input-area">
-                <input type="text" id="chatInput" placeholder="Mensagem..." autocomplete="off">
-                <button id="sendMsg"><i data-lucide="send"></i></button>
-            </div>
+        <div style="text-align:center">
+            <h1 id="wlc">Olá!</h1>
+            <p style="color:#666">Escolha uma opção no menu.</p>
         </div>
-    </script>
 
-    <script src="script.js"></script>
+        <div id="side" class="panel">
+            <button class="back-btn" id="close"><i data-lucide="chevron-left"></i> Voltar</button>
+            <div id="sideContent"></div>
+        </div>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyAjH1kVPCZHqZRzu9AszDKiD9csdEmSz_c",
+            authDomain: "chat-app-c974a.firebaseapp.com",
+            databaseURL: "https://chat-app-c974a-default-rtdb.firebaseio.com",
+            projectId: "chat-app-c974a",
+            appId: "1:753329556773:web:4511da13d5355efca81ecc"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        let user = {};
+
+        document.getElementById('formReg').onsubmit = (e) => {
+            e.preventDefault();
+            const birth = new Date(document.getElementById('d').value);
+            const age = new Date().getFullYear() - birth.getFullYear();
+            if(age < 10) return alert("Mínimo 10 anos!");
+
+            user = { nome: document.getElementById('n').value };
+            document.getElementById('scrReg').classList.remove('active');
+            document.getElementById('scrApp').classList.add('active');
+            document.getElementById('wlc').innerText = "Bem-vindo, " + user.nome;
+            lucide.createIcons();
+        };
+
+        const side = document.getElementById('side');
+        const cont = document.getElementById('sideContent');
+
+        document.getElementById('btnC').onclick = () => {
+            cont.innerHTML = `<h2>Chat Global</h2><div id="chatMsgs"></div><div class="chat-bar"><input id="mi" placeholder="Sua mensagem..."><button id="ms"><i data-lucide="send"></i></button></div>`;
+            side.classList.add('open');
+            lucide.createIcons();
+
+            const input = document.getElementById('mi');
+            document.getElementById('ms').onclick = () => {
+                if(!input.value) return;
+                db.ref('msgs').push({ u: user.nome, t: input.value });
+                input.value = '';
+            };
+
+            db.ref('msgs').limitToLast(20).on('child_added', s => {
+                const data = s.val();
+                const m = document.createElement('div');
+                m.className = 'msg';
+                m.innerHTML = `<b>${data.u}</b>${data.t}`;
+                document.getElementById('chatMsgs').appendChild(m);
+                document.getElementById('chatMsgs').scrollTop = 9999;
+            });
+        };
+
+        document.getElementById('close').onclick = () => side.classList.remove('open');
+        lucide.createIcons();
+    </script>
 </body>
 </html>
