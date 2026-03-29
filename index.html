@@ -2,10 +2,13 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Premium Social App</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
 </head>
 <body>
     
@@ -17,26 +20,15 @@
     <div id="registerScreen" class="full-screen active">
         <main class="main-card glass-card">
             <div class="card-header">
-                <div class="icon-box gradient-1">
-                    <i data-lucide="user-plus"></i>
-                </div>
+                <div class="icon-box gradient-1"><i data-lucide="user-plus"></i></div>
                 <h1>Crie sua Conta</h1>
-                <p>Apenas para maiores de 10 anos.</p>
+                <p>Mínimo 10 anos para acessar.</p>
             </div>
-
             <form id="profileForm">
                 <div class="grid-inputs">
-                    <div class="input-wrapper" style="--delay: 0.1s">
-                        <i data-lucide="user"></i>
-                        <input type="text" id="regNome" placeholder=" " required>
-                        <label>Nome Completo</label>
-                    </div>
-                    <div class="input-wrapper" style="--delay: 0.2s">
-                        <i data-lucide="calendar"></i>
-                        <input type="date" id="regData" required>
-                        <label class="fixed">Data de Nascimento</label>
-                    </div>
-                    <div class="input-wrapper" style="--delay: 0.3s">
+                    <div class="input-wrapper"><i data-lucide="user"></i><input type="text" id="regNome" placeholder="Nome Completo" required></div>
+                    <div class="input-wrapper"><i data-lucide="calendar"></i><input type="date" id="regData" required></div>
+                    <div class="input-wrapper">
                         <i data-lucide="venn-diagram"></i>
                         <select id="regGenero" required>
                             <option value="" disabled selected>Gênero</option>
@@ -45,16 +37,9 @@
                             <option value="Outro">Outro</option>
                         </select>
                     </div>
-                    <div class="input-wrapper full-width" style="--delay: 0.4s">
-                        <i data-lucide="align-left"></i>
-                        <textarea id="regBio" placeholder=" " rows="3" required></textarea>
-                        <label>Sua Bio...</label>
-                    </div>
+                    <div class="input-wrapper"><i data-lucide="align-left"></i><textarea id="regBio" placeholder="Sua Bio..." rows="2" required></textarea></div>
                 </div>
-                <button type="submit" class="btn-shine" id="btnRegister">
-                    <span>Entrar no App</span>
-                    <i data-lucide="arrow-right"></i>
-                </button>
+                <button type="submit" class="btn-shine">ENTRAR NO APP</button>
             </form>
         </main>
     </div>
@@ -68,22 +53,23 @@
             </button>
         </div>
         <div class="app-content">
-            <h1 class="welcome-text">Bem-vindo ao Futuro.</h1>
-            <p>Clique nos ícones ao lado para navegar.</p>
+            <h1 class="welcome-text">Bem-vindo.</h1>
+            <p>Use o menu lateral para começar.</p>
         </div>
+        
         <div id="sidePanel" class="side-panel glass-card">
-            <button class="close-panel" id="closePanel">&times;</button>
+            <button class="close-panel" id="closePanel"><i data-lucide="x"></i></button>
             <div id="panelContent"></div>
         </div>
     </div>
 
     <template id="profileTemplate">
-        <div class="panel-header"><h2>Seu Perfil</h2></div>
+        <div class="panel-header"><h2>Meu Perfil</h2></div>
         <div class="profile-details">
-            <p><strong>Nome:</strong> <span id="pNome"></span></p>
-            <p><strong>Nascimento:</strong> <span id="pData"></span></p>
-            <p><strong>Gênero:</strong> <span id="pGenero"></span></p>
-            <div class="bio-box"><strong>Bio:</strong> <p id="pBio"></p></div>
+            <div class="detail-item"><strong>Nome:</strong> <span id="pNome"></span></div>
+            <div class="detail-item"><strong>Nascimento:</strong> <span id="pData"></span></div>
+            <div class="detail-item"><strong>Gênero:</strong> <span id="pGenero"></span></div>
+            <div class="bio-box"><strong>Bio:</strong><p id="pBio"></p></div>
         </div>
     </template>
 
@@ -92,14 +78,13 @@
         <div class="chat-wrapper">
             <div id="chatMessages" class="chat-messages"></div>
             <div class="chat-input-area">
-                <input type="text" id="chatInput" placeholder="Sua mensagem...">
+                <input type="text" id="chatInput" placeholder="Mensagem..." autocomplete="off">
                 <button id="sendMsg"><i data-lucide="send"></i></button>
             </div>
         </div>
     </template>
 
     <script src="script.js"></script>
-    <script>lucide.createIcons();</script>
 </body>
 </html>
 
