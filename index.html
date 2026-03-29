@@ -2,37 +2,174 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>App Social</title><script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script><script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script><style>
-body{margin:0;background:#05070a;color:#fff;font-family:sans-serif}
-.screen{position:fixed;inset:0;display:flex;justify-content:center;align-items:center;opacity:0;pointer-events:none}
-.screen.active{opacity:1;pointer-events:all}
-.box{background:#111;padding:20px;border-radius:15px;width:90%;max-width:400px}
-input,select,textarea{width:100%;margin:5px 0;padding:10px;background:#222;border:none;color:#fff;border-radius:8px}
-button{width:100%;padding:12px;margin-top:10px;border:none;border-radius:10px;background:#00f2ff;color:#000}
-.menu{position:fixed;top:20px;right:20px}
-.panel{position:fixed;right:-100%;top:0;width:100%;height:100%;background:#000;transition:.3s;padding:20px;display:flex;flex-direction:column}
+<title>App Premium</title><script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script><script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script><style>
+:root{
+--bg:#05070a;
+--card:rgba(20,25,40,0.95);
+--primary:#00f2ff;
+--secondary:#bc13fe;
+--text:#fff;
+}
+
+*{margin:0;padding:0;box-sizing:border-box;font-family:sans-serif}
+
+body{
+background:var(--bg);
+color:var(--text);
+height:100vh;
+overflow:hidden;
+}
+
+/* fundo animado */
+.glow{
+position:absolute;
+width:300px;height:300px;
+border-radius:50%;
+filter:blur(80px);
+opacity:.2;
+animation:move 10s infinite alternate;
+}
+.g1{background:var(--primary);top:-50px;left:-50px;}
+.g2{background:var(--secondary);bottom:-50px;right:-50px;}
+
+@keyframes move{
+from{transform:translate(0,0)}
+to{transform:translate(50px,50px)}
+}
+
+/* telas */
+.screen{
+position:fixed;
+inset:0;
+display:flex;
+justify-content:center;
+align-items:center;
+opacity:0;
+pointer-events:none;
+transition:.5s;
+}
+.screen.active{
+opacity:1;
+pointer-events:all;
+}
+
+/* card */
+.card{
+background:var(--card);
+padding:30px;
+border-radius:25px;
+width:90%;
+max-width:400px;
+backdrop-filter:blur(20px);
+box-shadow:0 20px 40px rgba(0,0,0,.5);
+animation:fade .6s;
+}
+
+@keyframes fade{
+from{opacity:0;transform:translateY(20px)}
+to{opacity:1;transform:translateY(0)}
+}
+
+/* inputs */
+input,select,textarea{
+width:100%;
+margin:8px 0;
+padding:15px;
+border-radius:15px;
+border:1px solid rgba(255,255,255,.1);
+background:#111;
+color:#fff;
+font-size:16px;
+}
+
+/* botão grande */
+button{
+width:100%;
+padding:16px;
+margin-top:15px;
+border:none;
+border-radius:15px;
+background:linear-gradient(45deg,var(--primary),var(--secondary));
+color:#fff;
+font-weight:bold;
+font-size:16px;
+cursor:pointer;
+transition:.2s;
+}
+button:active{transform:scale(.95)}
+
+/* menu */
+.menu{
+position:fixed;
+top:20px;
+right:20px;
+display:flex;
+flex-direction:column;
+gap:15px;
+}
+
+.menu button{
+width:60px;height:60px;
+border-radius:18px;
+font-size:20px;
+}
+
+/* painel */
+.panel{
+position:fixed;
+right:-100%;
+top:0;
+width:100%;
+height:100%;
+background:#05070a;
+transition:.4s;
+padding:20px;
+display:flex;
+flex-direction:column;
+}
 .panel.open{right:0}
-.msg{background:#111;margin:5px;padding:10px;border-radius:10px}
-.chat-bar{display:flex;gap:5px}
-.chat-bar input{flex:1}
-</style></head><body><div id="scrReg" class="screen active">
-<div class="box">
-<h3>Cadastro</h3>
-<form id="formReg">
+
+/* chat */
+#msgs{flex:1;overflow:auto;margin:15px 0}
+
+.msg{
+background:#111;
+padding:12px;
+border-radius:15px;
+margin-bottom:10px;
+animation:fade .3s;
+}
+
+.chat-bar{
+display:flex;
+gap:10px;
+}
+.chat-bar input{
+flex:1;
+}
+.chat-bar button{
+width:70px;
+}
+</style></head><body><div class="glow g1"></div>
+<div class="glow g2"></div><!-- cadastro --><div id="scrReg" class="screen active">
+<div class="card">
+<h2>Criar Conta</h2><form id="formReg">
 <input id="n" placeholder="Nome" required>
-<input type="date" id="d" required>
-<select id="g"><option>Gênero</option></select>
-<textarea id="b" placeholder="Bio"></textarea>
-<button>Entrar</button>
+<input type="date" id="d" required><select id="g">
+<option>Gênero</option>
+<option>Masculino</option>
+<option>Feminino</option>
+</select><textarea id="b" placeholder="Bio"></textarea><button>Entrar</button>
+
 </form>
 </div>
-</div><div id="scrApp" class="screen">
+</div><!-- app --><div id="scrApp" class="screen">
 <div class="menu">
-<button onclick="openChat()">💬</button>
-<button onclick="openPerfil()">👤</button>
+<button onclick="chat()">💬</button>
+<button onclick="perfil()">👤</button>
 </div><h2 id="wlc"></h2><div id="side" class="panel">
 <button onclick="fechar()">Voltar</button>
-<div id="content"></div>
+<div id="cont"></div>
 </div>
 </div><script>
 const firebaseConfig={
@@ -42,8 +179,9 @@ databaseURL:"https://chat-app-c974a-default-rtdb.firebaseio.com"
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
 
-let user={},chatRef=null;
+let user={},ref=null;
 
+// salvar usuário
 const saved=localStorage.getItem("user");
 if(saved){
 user=JSON.parse(saved);
@@ -66,51 +204,53 @@ start();
 function start(){
 scrReg.classList.remove("active");
 scrApp.classList.add("active");
-wlc.innerText="Olá "+user.nome;
+wlc.innerText="Olá, "+user.nome;
 }
 
-function openChat(){
+function chat(){
 
-if(chatRef) chatRef.off();
+if(ref) ref.off();
 
-content.innerHTML=`
+cont.innerHTML=`
 <h2>Chat</h2>
 <div id="msgs"></div>
 <div class="chat-bar">
 <input id="msg">
-<button onclick="send()">Enviar</button>
+<button onclick="send()">➤</button>
 </div>`;
 
 side.classList.add("open");
 
-chatRef=db.ref("msgs").limitToLast(50);
+ref=db.ref("msgs").limitToLast(50);
 
-chatRef.on("child_added",s=>{
+ref.on("child_added",s=>{
 let d=s.val();
+
 let div=document.createElement("div");
 div.className="msg";
 div.innerHTML="<b>"+d.u+"</b><br>"+d.t;
+
 msgs.appendChild(div);
 msgs.scrollTop=msgs.scrollHeight;
 });
 }
 
 function send(){
-let input=document.getElementById("msg");
-if(!input.value.trim())return;
+let i=document.getElementById("msg");
+if(!i.value.trim())return;
 
-db.ref("msgs").push({u:user.nome,t:input.value});
-input.value="";
+db.ref("msgs").push({u:user.nome,t:i.value});
+i.value="";
 }
 
-function openPerfil(){
-content.innerHTML="<h2>"+user.nome+"</h2><p>"+user.bio+"</p>";
+function perfil(){
+cont.innerHTML="<h2>"+user.nome+"</h2><p>"+user.bio+"</p>";
 side.classList.add("open");
 }
 
 function fechar(){
 side.classList.remove("open");
-if(chatRef) chatRef.off();
+if(ref) ref.off();
 }
 </script></body>
 </html>
