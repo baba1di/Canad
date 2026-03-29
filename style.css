@@ -1,50 +1,124 @@
 :root {
-    --bg: #05070a;
-    --card-bg: rgba(15, 23, 42, 0.8);
+    --bg: #030509; /* Mais profundo */
+    --card-bg: rgba(10, 15, 28, 0.95); /* Menos transparente */
     --primary: #22d3ee;
     --secondary: #d946ef;
     --text: #f8fafc;
-    --border: rgba(255, 255, 255, 0.1);
+    --border: rgba(255, 255, 255, 0.12); /* Mais visível */
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; font-family: sans-serif; }
-body { background: var(--bg); color: var(--text); height: 100vh; overflow: hidden; }
 
-.glow-container .ball {
-    position: absolute; width: 400px; height: 400px; border-radius: 50%;
-    filter: blur(80px); z-index: -1; opacity: 0.3; animation: move 20s infinite alternate;
+body { 
+    background: var(--bg); 
+    color: var(--text); 
+    height: 100vh; 
+    overflow: hidden; 
+    display: flex; /* Garante flexbox */
 }
-.ball:nth-child(1) { background: var(--primary); top: -10%; left: -10%; }
-.ball:nth-child(2) { background: var(--secondary); bottom: -10%; right: -10%; }
-@keyframes move { from { transform: translate(0,0); } to { transform: translate(50px, 50px); } }
 
+/* Fundo Animado - Melhorei a cor */
+.glow-container .ball {
+    position: absolute; width: 500px; height: 500px; border-radius: 50%;
+    filter: blur(100px); z-index: -1; opacity: 0.25; animation: move 20s infinite alternate;
+}
+.ball:nth-child(1) { background: var(--primary); top: -20%; left: -20%; }
+.ball:nth-child(2) { background: var(--secondary); bottom: -20%; right: -20%; }
+@keyframes move { from { transform: translate(0,0); } to { transform: translate(80px, 80px); } }
+
+/* ESTRUTURA DE TELAS - Forçando Tela Cheia */
 .full-screen {
-    position: fixed; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; 
+    display: flex; align-items: center; justify-content: center;
     opacity: 0; pointer-events: none; transition: 0.5s;
+    z-index: 10;
 }
 .full-screen.active { opacity: 1; pointer-events: all; }
 
-.glass-card { background: var(--card-bg); backdrop-filter: blur(15px); border: 1px solid var(--border); border-radius: 20px; padding: 30px; }
-.main-card { width: 90%; max-width: 450px; text-align: center; }
+/* TELA DE REGISTRO - Visual Rico */
+.main-card { 
+    width: 85%; max-width: 400px; text-align: center;
+    background: var(--card-bg); backdrop-filter: blur(15px); 
+    border: 1px solid var(--border); border-radius: 20px; 
+    padding: 25px; 
+    box-shadow: 0 15px 35px rgba(0,0,0,0.7);
+}
 
-.grid-inputs { display: flex; flex-direction: column; gap: 15px; text-align: left; }
-.input-wrapper { position: relative; background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 10px; padding: 8px 12px; display: flex; align-items: center; }
-.input-wrapper i { margin-right: 10px; color: #64748b; }
-.input-wrapper input, .input-wrapper textarea, .input-wrapper select { background: transparent; border: none; color: white; width: 100%; outline: none; padding: 10px 0; }
+.grid-inputs { display: flex; flex-direction: column; gap: 12px; text-align: left; }
 
-.btn-shine { width: 100%; padding: 15px; margin-top: 20px; border: none; border-radius: 10px; background: linear-gradient(90deg, var(--primary), var(--secondary)); color: white; font-weight: bold; cursor: pointer; }
+.input-wrapper { 
+    position: relative; background: rgba(255,255,255,0.02); 
+    border: 1px solid var(--border); border-radius: 8px; 
+    padding: 6px 10px; display: flex; align-items: center;
+    transition: 0.2s;
+}
+.input-wrapper:focus-within { border-color: var(--primary); background: rgba(255,255,255,0.06); }
+.input-wrapper i { margin-right: 8px; color: #64748b; font-size: 14px; }
 
-.actions-bar { position: fixed; top: 20px; right: 20px; display: flex; flex-direction: column; gap: 10px; z-index: 100; }
-.action-btn { width: 50px; height: 50px; border-radius: 12px; background: var(--card-bg); border: 1px solid var(--border); color: white; cursor: pointer; position: relative; }
-.notification-badge { position: absolute; top: 5px; right: 5px; width: 8px; height: 8px; background: var(--secondary); border-radius: 50%; }
+.input-wrapper input, .input-wrapper textarea, .input-wrapper select { 
+    background: transparent; border: none; color: white; width: 100%; 
+    outline: none; padding: 6px 0; font-size: 14px;
+}
+/* Força cor branca para placeholders no celular */
+.input-wrapper input::placeholder, .input-wrapper textarea::placeholder { color: #64748b; }
 
-.side-panel { position: fixed; top: 0; right: -400px; width: 350px; height: 100vh; transition: 0.4s; z-index: 200; display: flex; flex-direction: column; }
+.btn-shine { 
+    width: 100%; padding: 12px; margin-top: 15px; 
+    border: none; border-radius: 8px; 
+    background: linear-gradient(90deg, var(--primary), var(--secondary)); 
+    color: white; font-weight: bold; cursor: pointer; font-size: 14px;
+    box-shadow: 0 5px 15px rgba(34,211,238,0.3);
+}
+
+/* TELA DO APP - Ícones Rico */
+.actions-bar { 
+    position: fixed; top: 15px; right: 15px; 
+    display: flex; flex-direction: column; gap: 8px; 
+    z-index: 100;
+}
+.action-btn { 
+    width: 45px; height: 45px; border-radius: 10px; 
+    background: var(--card-bg); border: 1px solid var(--border); 
+    color: white; cursor: pointer; position: relative; 
+    backdrop-filter: blur(5px);
+}
+.action-btn:hover { border-color: var(--primary); color: var(--primary); }
+.notification-badge { 
+    position: absolute; top: 4px; right: 4px; width: 6px; height: 6px; 
+    background: var(--secondary); border-radius: 50%; 
+    box-shadow: 0 0 5px var(--secondary);
+}
+
+/* Conteúdo de Bem-Vindo */
+.app-content { text-align: center; }
+.welcome-text { 
+    font-size: 2rem; margin-bottom: 10px;
+    background: linear-gradient(to right, #fff, #94a3b8); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+
+/* PAINEL LATERAL - Rico */
+.side-panel { 
+    position: fixed; top: 0; right: -350px; width: 300px; 
+    height: 100vh; transition: 0.3s; z-index: 200; 
+    display: flex; flex-direction: column;
+    background: rgba(10, 15, 28, 0.98); backdrop-filter: blur(15px);
+    border: 1px solid var(--border); border-right: none;
+    border-radius: 15px 0 0 15px;
+    padding: 20px;
+}
 .side-panel.open { right: 0; }
-.close-panel { position: absolute; top: 15px; left: 15px; background: none; border: none; color: white; font-size: 25px; cursor: pointer; }
+.close-panel { 
+    position: absolute; top: 10px; left: 10px; background: none; 
+    border: none; color: white; font-size: 20px; cursor: pointer; 
+}
 
-.chat-wrapper { flex: 1; display: flex; flex-direction: column; margin-top: 40px; }
-.chat-messages { flex: 1; overflow-y: auto; margin-bottom: 10px; display: flex; flex-direction: column; gap: 8px; }
-.msg-bubble { background: var(--primary); padding: 8px 12px; border-radius: 10px; color: #000; align-self: flex-start; max-width: 80%; font-size: 14px; }
-.chat-input-area { display: flex; gap: 5px; }
-.chat-input-area input { flex: 1; padding: 10px; border-radius: 5px; border: 1px solid var(--border); background: #000; color: white; }
-.chat-input-area button { padding: 10px; background: var(--primary); border: none; border-radius: 5px; }
+/* CHAT - Rico */
+.chat-wrapper { flex: 1; display: flex; flex-direction: column; margin-top: 30px; }
+.chat-messages { flex: 1; overflow-y: auto; margin-bottom: 8px; display: flex; flex-direction: column; gap: 6px; }
+.msg-bubble { 
+    padding: 6px 10px; border-radius: 8px; font-size: 13px; 
+    background: rgba(255,255,255,0.05); color: #fff; align-self: flex-start; max-width: 80%; 
+}
+.chat-input-area { display: flex; gap: 4px; }
+.chat-input-area input { flex: 1; padding: 8px; border-radius: 5px; border: 1px solid var(--border); background: #000; color: white; font-size: 13px; }
+.chat-input-area button { padding: 8px; background: var(--primary); border: none; border-radius: 5px; cursor: pointer; }
