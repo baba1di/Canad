@@ -6,16 +6,89 @@
 body{margin:0;background:#05070a;color:#fff;font-family:sans-serif}
 .screen{position:fixed;inset:0;display:flex;justify-content:center;align-items:center;opacity:0;pointer-events:none;transition:.3s}
 .screen.active{opacity:1;pointer-events:all}
+
 .box{background:#111;padding:20px;border-radius:15px;width:90%;max-width:400px}
-input,textarea{width:100%;margin:5px 0;padding:12px;background:#222;border:none;color:#fff;border-radius:10px}
-button{width:100%;padding:14px;margin-top:10px;border:none;border-radius:10px;background:#00f2ff;color:#000;font-weight:bold}
-.menu{position:fixed;top:20px;right:20px;display:flex;flex-direction:column;gap:10px}
-.menu button{width:55px;height:55px;border-radius:15px}
-.panel{position:fixed;right:-100%;top:0;width:100%;height:100%;background:#000;transition:.3s;padding:20px;display:flex;flex-direction:column}
+
+input,textarea{
+width:100%;
+margin:5px 0;
+padding:14px;
+background:#222;
+border:none;
+color:#fff;
+border-radius:10px;
+font-size:16px;
+}
+
+button{
+width:100%;
+padding:14px;
+margin-top:10px;
+border:none;
+border-radius:10px;
+background:#00f2ff;
+color:#000;
+font-weight:bold;
+font-size:16px;
+}
+
+.menu{
+position:fixed;
+top:20px;
+right:20px;
+display:flex;
+flex-direction:column;
+gap:10px;
+}
+
+.menu button{
+width:60px;
+height:60px;
+border-radius:15px;
+font-size:20px;
+}
+
+.panel{
+position:fixed;
+right:-100%;
+top:0;
+width:100%;
+height:100%;
+background:#000;
+transition:.3s;
+padding:20px;
+display:flex;
+flex-direction:column;
+}
+
 .panel.open{right:0}
-.msg{background:#111;margin:5px;padding:10px;border-radius:10px}
-.chat-bar{display:flex;gap:5px}
-.chat-bar input{flex:1}
+
+#msgs{
+flex:1;
+overflow:auto;
+margin:10px 0;
+}
+
+.msg{
+background:#111;
+padding:12px;
+border-radius:10px;
+margin-bottom:8px;
+}
+
+.chat-bar{
+display:flex;
+gap:10px;
+}
+
+.chat-bar input{
+flex:1;
+}
+
+.chat-bar button{
+width:70px;
+font-size:18px;
+}
 </style></head><body><div id="scrReg" class="screen active">
 <div class="box">
 <h3>Cadastro</h3>
@@ -46,7 +119,7 @@ const db=firebase.database();
 
 let user={},ref=null;
 
-// carregar usuário
+// carregar usuário salvo
 const saved=localStorage.getItem("user");
 if(saved){
 user=JSON.parse(saved);
@@ -80,11 +153,14 @@ if(ref) ref.off();
 
 cont.innerHTML=`
 <h2>Chat</h2>
+
 <div id="msgs"></div>
+
 <div class="chat-bar">
-<input id="msg" placeholder="Mensagem">
-<button onclick="send()">Enviar</button>
-</div>`;
+<input id="msg" placeholder="Digite..." onkeypress="enterSend(event)">
+<button onclick="send()">➤</button>
+</div>
+`;
 
 side.classList.add("open");
 
@@ -105,14 +181,25 @@ box.scrollTop=box.scrollHeight;
 });
 }
 
-// enviar
+// ENTER
+function enterSend(e){
+if(e.key==="Enter"){
+e.preventDefault();
+send();
+}
+}
+
+// ENVIAR
 function send(){
 const i=document.getElementById("msg");
-if(!i.value.trim()) return;
+if(!i) return;
+
+const txt=i.value.trim();
+if(!txt) return;
 
 db.ref("msgs").push({
-u:user.nome,
-t:i.value,
+u:user.nome || "Anônimo",
+t:txt,
 time:Date.now()
 });
 
@@ -168,7 +255,7 @@ wlc.innerText="Olá "+user.nome;
 config();
 }
 
-// fechar
+// FECHAR
 function fechar(){
 side.classList.remove("open");
 if(ref) ref.off();
