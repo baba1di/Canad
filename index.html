@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Premium Dashboard Entry</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <div class="glow-container">
+        <div class="ball"></div>
+        <div class="ball"></div>
+    </div>
+
+    <main class="main-card">
+        <div class="card-header">
+            <div class="icon-box">
+                <i data-lucide="user-plus"></i>
+            </div>
+            <h1>Novo Perfil</h1>
+            <p>Preencha os dados para atualizar o sistema</p>
+        </div>
+
+        <form id="profileForm">
+            <div class="grid-inputs">
+                <div class="input-wrapper" style="--delay: 0.1s">
+                    <i data-lucide="user"></i>
+                    <input type="text" id="nome" placeholder=" " required>
+                    <label>Nome Completo</label>
+                </div>
+
+                <div class="input-wrapper" style="--delay: 0.2s">
+                    <i data-lucide="calendar"></i>
+                    <input type="date" id="data" required>
+                    <label class="fixed">Data de Nascimento</label>
+                </div>
+
+                <div class="input-wrapper" style="--delay: 0.3s">
+                    <i data-lucide="venn-diagram"></i>
+                    <select id="genero" required>
+                        <option value="" disabled selected>Selecione o Gênero</option>
+                        <option value="masculino">Masculino</option>
+                        <option value="feminino">Feminino</option>
+                        <option value="outro">Personalizado</option>
+                    </select>
+                </div>
+
+                <div class="input-wrapper full-width" style="--delay: 0.4s">
+                    <i data-lucide="align-left"></i>
+                    <textarea id="bio" placeholder=" " rows="3" required></textarea>
+                    <label>Bio / Descrição Curta</label>
+                </div>
+            </div>
+
+            <button type="submit" class="btn-shine" id="btnEnviar">
+                <span>Confirmar Registro</span>
+                <i data-lucide="arrow-right"></i>
+            </button>
+        </form>
+    </main>
+
+    <script src="script.js"></script>
+    <script>lucide.createIcons();</script>
+</body>
+</html>
