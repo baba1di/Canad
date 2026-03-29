@@ -35,10 +35,14 @@ let msgSelecionadaId = null;
 let msgSelecionadaNome = null;
 let listaUsuarios = [];
 let msgsApagadasLocal = JSON.parse(localStorage.getItem("msgs_ocultas")) || [];
+let respondendoA = null;
 
 window.onload = () => {
-    if(user && user.nome) startApp();
-    else scrReg.classList.add("active");
+    if(user && user.nome) {
+        startApp();
+    } else {
+        scrReg.classList.add("active");
+    }
 
     formReg.onsubmit = (e) => {
         e.preventDefault();
@@ -93,6 +97,7 @@ function atualizarDigitando(lista) {
 window.abrirChat = () => {
     btnFlutuante.style.display = "none";
     sideContent.innerHTML = `
+    <div id="notificacaoChat" class="notificacao-top">Nova mensagem! 📥</div>
     <div class="chat-header">
         <button class="voltar-btn" onclick="fechar()">❮</button>
         <div class="header-center">Chat Real ✨</div>
@@ -105,13 +110,21 @@ window.abrirChat = () => {
         <div id="chatMsgs"></div>
         <div id="statusDigitando" class="status-digitando"></div>
         <div id="atList" class="at-box"></div>
+        <div id="replyPreview" class="reply-preview"></div>
         <div id="avisoChatCall" class="aviso-chat-bottom"></div>
         <div class="chat-bar">
+            <input type="file" id="fileInput" accept="image/*" style="display:none" onchange="enviarFoto(this)">
+            <button class="gallery-btn" onclick="document.getElementById('fileInput').click()">👄+</button>
             <button id="btnAudio" class="audio-btn">🎙️</button>
             <input id="msgInput" placeholder="Manda a boa..." oninput="aoDigitar(this)">
             <button class="send-btn" onclick="enviarMsg()">➤</button>
         </div>
     </div>
+    <div id="fullView" class="full-image-overlay" onclick="fecharFoto()">
+        <img id="imgExpandida">
+        <button class="save-photo-btn" onclick="event.stopPropagation(); baixarFoto()">💾 Salvar na Galeria</button>
+    </div>
+    <div id="btnRetornarCall" class="btn-retornar-call" onclick="maximizarCall()">Chamada em curso... 📞</div>
     <div id="menuMsg" class="menu-msg-overlay">
         <div class="menu-msg-box"><button class="btn-apagar" onclick="confirmarApagar()">🗑️ Apagar Mensagem</button></div>
     </div>
@@ -119,6 +132,7 @@ window.abrirChat = () => {
         <div class="call-grid" id="callGrid"></div>
         <div class="controles-call">
             <button id="btnCam" class="btn-ctrl" onclick="toggleCam()">🎥</button>
+            <button class="btn-ctrl" onclick="minimizarCall()">📉</button>
             <button class="btn-ctrl btn-hangup" onclick="sairChamada()">📞</button>
         </div>
     </div>
@@ -137,6 +151,23 @@ window.abrirChat = () => {
     escutarCall();
     configurarGravador();
 };
+
+window.minimizarCall = () => {
+    document.getElementById("telaCall").classList.remove("active");
+    document.getElementById("btnRetornarCall").style.display = "block";
+};
+window.maximizarCall = () => {
+    document.getElementById("telaCall").classList.add("active");
+    document.getElementById("btnRetornarCall").style.display = "none";
+};
+
+function mostrarNotificacao() {
+    const note = document.getElementById("notificacaoChat");
+    if(note) {
+        note.classList.add("show");
+        setTimeout(() => note.classList.remove("show"), 3000);
+    }
+}
 
 let typingTimer;
 window.aoDigitar = (input) => {
@@ -178,46 +209,96 @@ window.fecharAtList = () => {
 
 function escutarMensagens() {
     const box = document.getElementById("chatMsgs");
+    let primeiraCarga = true;
     onSnapshot(query(collection(db,"mensagens"),orderBy("createdAt", "asc")), snap => {
         box.innerHTML = "";
         snap.forEach(docSnap => {
             if(msgsApagadasLocal.includes(docSnap.id)) return;
-
             const d = docSnap.data();
             const mencao = d.texto?.match(/@(\S+)/);
             const destino = mencao ? mencao[1] : null;
             const ehPrivada = destino !== null;
             const paraMim = destino === user.nome;
             const euMandei = d.nome === user.nome;
-
             if (!ehPrivada || euMandei || paraMim) {
                 const div = document.createElement("div");
                 div.className = euMandei ? "msg me" : "msg";
                 if (ehPrivada) div.classList.add("private-msg");
                 div.id = `msg_${docSnap.id}`;
                 
+                let replyHtml = d.replyTo ? `<div class="reply-inside"><b>${d.replyTo.nome}:</b> ${d.replyTo.texto}</div>` : "";
                 let heart = d.liked ? `<span class="heart-pop">❤️</span>` : "";
                 let tagPrivado = ehPrivada ? `<span class="lock-icon">🔒 Privado</span>` : "";
-                let cont = d.audio ? `<audio controls src="${d.audio}"></audio>` : `<p>${d.texto}</p>`;
                 
-                div.innerHTML = `<span class="sender">${d.nome} ${tagPrivado}</span>${cont}${heart}`;
+                let content = "";
+                if(d.foto) {
+                    content = `<img src="${d.foto}" class="img-mini" onclick="expandirFoto('${d.foto}')">`;
+                } else if(d.audio) {
+                    content = `<audio controls src="${d.audio}"></audio>`;
+                } else {
+                    content = `<p>${d.texto}</p>`;
+                }
+
+                div.innerHTML = `${replyHtml}<span class="sender">${d.nome} ${tagPrivado}</span>${content}${heart}`;
                 
+                div.onclick = () => prepararResposta(d.nome, d.texto || (d.foto ? "Foto" : "Áudio"));
                 div.ondblclick = (e) => { e.stopPropagation(); updateDoc(doc(db, "mensagens", docSnap.id), { liked: !d.liked }); };
                 
                 let timer;
                 const startTimer = () => { timer = setTimeout(() => abrirMenuMsg(docSnap.id, d.nome), 600); };
                 const endTimer = () => { clearTimeout(timer); };
-
                 div.addEventListener("pointerdown", startTimer);
                 div.addEventListener("pointerup", endTimer);
                 div.addEventListener("pointerleave", endTimer);
-
                 box.appendChild(div);
             }
         });
+        if(!primeiraCarga) mostrarNotificacao();
+        primeiraCarga = false;
         box.scrollTop = box.scrollHeight;
     });
 }
+
+// BUG DA FOTO DO TIKTOK ARRUMADO AQUI
+window.enviarFoto = (input) => {
+    const file = input.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            const base64Image = e.target.result;
+            if(base64Image) {
+               await addDoc(collection(db, "mensagens"), {
+                   nome: user.nome, foto: base64Image, replyTo: respondendoA, createdAt: serverTimestamp(), liked: false
+               });
+               cancelarResposta();
+            }
+            input.value = ""; // Reseta o input para aceitar a mesma foto depois
+        };
+        reader.onerror = () => alert("Erro ao carregar a foto do dispositivo.");
+        reader.readAsDataURL(file);
+    }
+};
+
+window.expandirFoto = (src) => {
+    const img = document.getElementById("imgExpandida");
+    img.src = src;
+    document.getElementById("fullView").style.display = "flex";
+};
+window.fecharFoto = () => document.getElementById("fullView").style.display = "none";
+window.baixarFoto = () => {
+    const link = document.createElement("a");
+    link.href = document.getElementById("imgExpandida").src;
+    link.download = "imagem_chat.png";
+    link.click();
+};
+
+function prepararResposta(nome, texto) {
+    respondendoA = { nome, texto };
+    const p = document.getElementById("replyPreview");
+    p.innerHTML = `Respondendo a ${nome}... <span onclick="cancelarResposta()">✕</span>`;
+    p.style.display = "block";
+}
+window.cancelarResposta = () => { respondendoA = null; document.getElementById("replyPreview").style.display = "none"; };
 
 function configurarGravador() {
     const btn = document.getElementById("btnAudio");
@@ -235,8 +316,9 @@ function configurarGravador() {
                     reader.readAsDataURL(blob);
                     reader.onloadend = async () => {
                         await addDoc(collection(db, "mensagens"), { 
-                            nome: user.nome, audio: reader.result, createdAt: serverTimestamp(), liked: false 
+                            nome: user.nome, audio: reader.result, replyTo: respondendoA, createdAt: serverTimestamp(), liked: false 
                         });
+                        cancelarResposta();
                     };
                 }
                 stream.getTracks().forEach(t => t.stop());
@@ -262,10 +344,7 @@ window.addVideoRemoto = (peerId, stream) => {
     card.innerHTML = ""; 
     const v = document.createElement("video");
     v.autoplay = true; v.playsinline = true;
-    if(peerId === meuPeer.id) {
-        v.muted = true;
-        v.style.transform = "scaleX(-1)"; // Corrige câmera invertida
-    }
+    if(peerId === meuPeer.id) { v.muted = true; v.style.transform = "scaleX(-1)"; }
     v.srcObject = stream;
     card.appendChild(v);
 };
@@ -320,15 +399,16 @@ window.confirmarApagar = async () => {
     } else {
         msgsApagadasLocal.push(msgSelecionadaId);
         localStorage.setItem("msgs_ocultas", JSON.stringify(msgsApagadasLocal));
-        escutarMensagens(); // Recarrega a vista
+        escutarMensagens(); 
     }
     fecharMenuMsg(); 
 };
 window.enviarMsg = async () => {
     const input = document.getElementById("msgInput");
     if(!input.value.trim()) return;
-    await addDoc(collection(db,"mensagens"), { nome: user.nome, texto: input.value, createdAt: serverTimestamp(), liked: false });
+    await addDoc(collection(db,"mensagens"), { nome: user.nome, texto: input.value, replyTo: respondendoA, createdAt: serverTimestamp(), liked: false });
     input.value = "";
+    cancelarResposta();
     updateDoc(doc(db, "usuarios_online", user.nome), { digitando: false });
 };
 window.salvarPerfil = () => { user.nome = editNome.value; user.bio = editBio.value; localStorage.setItem("user_completo", JSON.stringify(user)); alert("Salvo! ✨"); fecharPerfil(); };
@@ -341,10 +421,22 @@ window.fechar = () => { side.classList.remove("open"); btnFlutuante.style.displa
 :root { --main: #00f2ff; --bg: #000; }
 body { margin:0; background: var(--bg); color:#fff; font-family: sans-serif; height:100vh; overflow:hidden; }
 
-.status-digitando { font-size: 11px; color: var(--main); padding: 5px 15px; height: 15px; font-style: italic; }
-.at-box { position: absolute; bottom: 70px; left: 10px; background: #111; border: 1px solid var(--main); border-radius: 12px; width: 200px; display: none; z-index: 10; max-height: 150px; overflow-y: auto; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
-.at-box div { padding: 12px; border-bottom: 1px solid #222; cursor: pointer; font-size: 14px; color: var(--main); }
+.gallery-btn { background: #0044ff; color: white; border: 2px solid var(--main); width: 45px; height: 45px; border-radius: 50%; font-size: 14px; cursor: pointer; flex-shrink: 0; }
+.img-mini { width: 120px; height: 120px; object-fit: cover; border-radius: 12px; cursor: pointer; margin-top: 5px; border: 1px solid #333; }
+.reply-preview { background: #111; padding: 8px; border-left: 3px solid var(--main); display: none; font-size: 12px; color: #aaa; }
+.reply-inside { background: rgba(255,255,255,0.05); padding: 5px; border-radius: 5px; font-size: 10px; margin-bottom: 5px; color: #888; border-left: 2px solid #444; }
+.full-image-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 5000; display: none; flex-direction: column; align-items: center; justify-content: center; }
+#imgExpandida { max-width: 90%; max-height: 70%; border-radius: 10px; box-shadow: 0 0 20px var(--main); }
+.save-photo-btn { margin-top: 20px; background: var(--main); color: #000; border: none; padding: 12px 25px; border-radius: 20px; font-weight: bold; cursor: pointer; }
 
+.btn-retornar-call { position: fixed; top: 10px; right: 10px; background: #22ee22; color: #000; padding: 10px 15px; border-radius: 20px; font-size: 12px; font-weight: bold; z-index: 1500; display: none; box-shadow: 0 0 10px #22ee22; animation: bounce 2s infinite; }
+@keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+
+.notificacao-top { position: fixed; top: -50px; left: 50%; transform: translateX(-50%); background: var(--main); color: #000; padding: 10px 20px; border-radius: 20px; font-weight: bold; transition: 0.5s; z-index: 5000; }
+.notificacao-top.show { top: 20px; }
+
+.status-digitando { font-size: 11px; color: var(--main); padding: 5px 15px; height: 15px; font-style: italic; }
+.at-box { position: absolute; bottom: 70px; left: 10px; background: #111; border: 1px solid var(--main); border-radius: 12px; width: 200px; display: none; z-index: 10; max-height: 150px; overflow-y: auto; }
 .private-msg { border: 1px dashed var(--main) !important; background: rgba(0, 242, 255, 0.05) !important; }
 .lock-icon { font-size: 9px; background: #222; color: var(--main); padding: 2px 6px; border-radius: 4px; margin-left: 5px; font-weight: bold; }
 
@@ -357,12 +449,12 @@ body { margin:0; background: var(--bg); color:#fff; font-family: sans-serif; hei
 .icon-btn { background: #222; border: none; width: 45px; height: 45px; border-radius: 50%; color: var(--main); font-size: 20px; }
 .chat-wrapper { display: flex; flex-direction: column; height: calc(100% - 75px); position: relative; }
 #chatMsgs { flex:1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; }
-.msg { background: #1a1a1a; padding: 10px 15px; border-radius: 18px; max-width: 80%; align-self: flex-start; position: relative; border: 1px solid #222; }
+.msg { background: #1a1a1a; padding: 10px 15px; border-radius: 18px; max-width: 80%; align-self: flex-start; position: relative; border: 1px solid #222; cursor: pointer; }
 .msg.me { background: var(--main); color: #000; align-self: flex-end; border: none; }
-.heart-pop { position: absolute; bottom: -8px; right: -5px; background: #000; border-radius: 50%; padding: 2px 5px; border: 1px solid #333; font-size: 14px; animation: pop 0.3s; }
+.heart-pop { position: absolute; bottom: -8px; right: -5px; background: #000; border-radius: 50%; padding: 2px 5px; border: 1px solid #333; font-size: 14px; }
 audio { width: 200px; height: 40px; filter: invert(1); margin-top: 5px; }
 
-.call-overlay { position: fixed; inset: 0; background: #000; z-index: 1000; display: none; flex-direction: column; align-items: center; justify-content: center; }
+.call-overlay { position: fixed; inset: 0; background: #000; z-index: 2000; display: none; flex-direction: column; align-items: center; justify-content: center; }
 .call-overlay.active { display: flex; }
 .call-grid { display: grid; gap: 10px; width: 95%; height: 75vh; grid-template-columns: 1fr 1fr; }
 .video-card { background: #111; border-radius: 20px; overflow: hidden; border: 1px solid #222; position: relative; }
@@ -379,10 +471,9 @@ video { width: 100%; height: 100%; object-fit: cover; }
 .menu-msg-box { background: #111; padding: 20px; border-radius: 20px; border: 1px solid var(--main); width: 200px; }
 .btn-apagar { background: #ff4444; color: white; border: none; padding: 12px; width: 100%; border-radius: 12px; font-weight: bold; }
 
-.perfil-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 2000; display: none; align-items: center; justify-content: center; }
+.perfil-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 3000; display: none; align-items: center; justify-content: center; }
 .perfil-box { width: 85%; background: #111; padding: 25px; border-radius: 25px; border: 1px solid var(--main); }
 .menu button { width: 65px; height: 65px; border-radius: 50%; font-size: 28px; background: var(--main); border: none; position: fixed; bottom: 30px; right: 25px; box-shadow: 0 0 15px var(--main); }
-@keyframes pop { from { transform: scale(0.7); } to { transform: scale(1); } }
 .screen { position:fixed; inset:0; display:flex; justify-content:center; align-items:center; opacity:0; pointer-events:none; }
 .screen.active { opacity:1; pointer-events:all; }
 .panel { position: fixed; inset: 0; background: #000; transform: translateX(100%); transition: 0.3s; z-index: 500; }
