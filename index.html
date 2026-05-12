@@ -42,7 +42,7 @@
     .msg.me { background: var(--main); color: #000; align-self: flex-end; border: none; }
     
     .msg-top { display: flex; align-items: center; gap: 5px; margin-bottom: 4px; }
-    .user-icon-msg { cursor: pointer; font-size: 14px; background: #333; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; }
+    .user-icon-msg { cursor: pointer; font-size: 14px; background: #333; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; position: relative; }
 
     /* Coração e Privado */
     .heart-pop { position: absolute; bottom: -8px; right: -5px; background: #000; border-radius: 50%; padding: 2px 5px; border: 1px solid #333; font-size: 14px; }
@@ -64,6 +64,8 @@
 
     /* Estilo do Selo de Verificado */
     .badge-verificado { color: #00f2ff; font-size: 10px; margin-left: 2px; }
+    /* Verificado no ícone redondo */
+    .mini-verif { position: absolute; bottom: -4px; right: -4px; font-size: 9px; color: #00f2ff; background: #000; border-radius: 50%; }
 
     /* --- ESTILOS CALL --- */
     .call-overlay { position: fixed; inset: 0; background: #000; z-index: 30000; display: none; flex-direction: column; align-items: center; justify-content: center; }
@@ -245,12 +247,14 @@ function escutarMensagens() {
                 const verificadosOficiais = ["Ka", "ISAAC"];
                 const userData = databaseUsuarios[d.nome];
                 const temMilSeguidores = userData && userData.seguidores && userData.seguidores.length >= 1000;
-                const iconeVerif = (verificadosOficiais.includes(d.nome) || temMilSeguidores) ? `<i class="fa-solid fa-circle-check badge-verificado"></i>` : "";
+                
+                const iconeVerifSelo = (verificadosOficiais.includes(d.nome) || temMilSeguidores) ? `<i class="fa-solid fa-circle-check badge-verificado"></i>` : "";
+                const iconeVerifMini = (verificadosOficiais.includes(d.nome) || temMilSeguidores) ? `<i class="fa-solid fa-circle-check mini-verif"></i>` : "";
 
                 div.innerHTML = `
                     <div class="msg-top">
-                        <span class="user-icon-msg" onclick="verPerfilExterno('${escapeHtml(d.nome)}')">👤</span>
-                        <span style="font-size:10px;opacity:0.6">${escapeHtml(d.nome)}${iconeVerif} ${ehPrivada ? '🔒' : ''}</span>
+                        <span class="user-icon-msg" onclick="verPerfilExterno('${escapeHtml(d.nome)}')">👤${iconeVerifMini}</span>
+                        <span style="font-size:10px;opacity:0.6">${escapeHtml(d.nome)}${iconeVerifSelo} ${ehPrivada ? '🔒' : ''}</span>
                     </div>
                     <p>${escapeHtml(texto)}</p>
                     ${d.liked ? '<span class="heart-pop">❤️</span>' : ''}
@@ -279,8 +283,13 @@ window.verPerfilExterno = async (nomeAlvo) => {
     const dados = docSnap.data();
     const jaSegue = (dados.seguidores || []).includes(user.nome);
 
+    // Verificado no Perfil Externo
+    const verificadosOficiais = ["Ka", "ISAAC"];
+    const temMilSeguidores = (dados.seguidores || []).length >= 1000;
+    const iconeVerifMini = (verificadosOficiais.includes(nomeAlvo) || temMilSeguidores) ? `<i class="fa-solid fa-circle-check mini-verif"></i>` : "";
+
     byId("perfilExternoContent").innerHTML = `
-        <div class="avatar-grande">👤</div>
+        <div class="avatar-grande">👤${iconeVerifMini}</div>
         <h2 style="text-align:center">${escapeHtml(nomeAlvo)}</h2>
         <p style="text-align:center; opacity:0.7">${escapeHtml(dados.bio || "Sem bio...")}</p>
         <div class="stats-container">
@@ -347,6 +356,13 @@ window.abrirMeuPerfil = () => {
     byId("editNome").value = user.nome; byId("editBio").value = user.bio || "";
     byId("meusSeguidores").textContent = formatarNumero((user.seguidores || []).length);
     byId("meusSeguindo").textContent = formatarNumero((user.seguindo || []).length);
+    
+    // Verificado no Meu Perfil
+    const verificadosOficiais = ["Ka", "ISAAC"];
+    const temMilSeguidores = (user.seguidores || []).length >= 1000;
+    const iconeVerifMini = (verificadosOficiais.includes(user.nome) || temMilSeguidores) ? `<i class="fa-solid fa-circle-check mini-verif"></i>` : "";
+    byId("meuAvatarPerfil").innerHTML = `👤${iconeVerifMini}`;
+
     byId("painelPerfil").classList.add("active");
 };
 
@@ -429,7 +445,7 @@ window.displayResults = (r) => {
         <div id="painelPerfil" class="screen">
             <div style="background:#111; padding:25px; border-radius:25px; width:85%; border:1px solid #00f2ff; position: relative;">
                 <button style="position: absolute; top: 15px; right: 20px; background:none; border:none; color:#fff; font-size: 22px;" onclick="fecharMeuPerfil()">✕</button>
-                <div class="avatar-grande">👤</div>
+                <div class="avatar-grande" id="meuAvatarPerfil">👤</div>
                 <div class="stats-container">
                     <div class="stat-item"><span id="meusSeguidores" class="stat-val">0</span><span class="stat-label">Seguidores</span></div>
                     <div class="stat-item"><span id="meusSeguindo" class="stat-val">0</span><span class="stat-label">Seguindo</span></div>
