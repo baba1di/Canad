@@ -65,17 +65,21 @@
     /* Estilo do Selo de Verificado */
     .badge-verificado { color: #00f2ff; font-size: 10px; margin-left: 2px; }
 
-    /* --- ESTILOS CALL E PERFIL NOVO --- */
+    /* --- ESTILOS CALL --- */
     .call-overlay { position: fixed; inset: 0; background: #000; z-index: 30000; display: none; flex-direction: column; align-items: center; justify-content: center; }
     .call-overlay.active { display: flex; }
-    .call-grid { display: grid; gap: 10px; width: 95%; height: 70vh; grid-template-columns: 1fr 1fr; }
-    .video-card { background: #111; border-radius: 20px; overflow: hidden; border: 1px solid #222; }
-    video { width: 100%; height: 100%; object-fit: cover; }
-    .controles-call { display: flex; gap: 20px; margin-top: 20px; }
-    .btn-hangup { background: #ff4444 !important; }
-    .avatar-grande { width: 80px; height: 80px; background: #222; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 40px; margin: 0 auto 15px; border: 2px solid var(--main); position: relative; }
+    .call-grid { display: grid; gap: 12px; width: 95%; height: 75vh; grid-template-columns: 1fr 1fr; align-content: center; }
+    .video-card { background: #111; border-radius: 20px; overflow: hidden; border: 2px solid #222; position: relative; box-shadow: 0 8px 24px rgba(0,0,0,0.5); height: 100%; }
+    .video-card video { width: 100%; height: 100%; object-fit: cover; }
+    /* Efeito espelho no meu próprio vídeo para não parecer estranho */
+    .meu-video { transform: scaleX(-1); }
+    .video-label { position: absolute; bottom: 10px; left: 10px; background: rgba(0,0,0,0.6); padding: 4px 10px; border-radius: 8px; font-size: 12px; color: #00f2ff; backdrop-filter: blur(4px); }
+    
+    .controles-call { display: flex; gap: 20px; margin-top: 30px; }
+    .btn-hangup { background: #ff4444 !important; color: #fff !important; width: 60px !important; height: 60px !important; }
 
     /* Stats de Seguir */
+    .avatar-grande { width: 80px; height: 80px; background: #222; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 40px; margin: 0 auto 15px; border: 2px solid var(--main); position: relative; }
     .stats-container { display: flex; justify-content: space-around; margin: 15px 0; border-top: 1px solid #222; padding-top: 10px; }
     .stat-item { text-align: center; }
     .stat-val { display: block; font-weight: bold; color: var(--main); font-size: 18px; }
@@ -91,7 +95,6 @@
     #music-grid { padding: 20px; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 20px; padding-bottom: 120px; }
     .card { background: #1a1f29; padding: 12px; border-radius: 16px; transition: 0.3s; cursor: pointer; border: 1px solid transparent; position: relative; }
     .card img { width: 100%; border-radius: 12px; margin-bottom: 10px; }
-    .fav-toggle { position: absolute; top: 15px; right: 15px; background: rgba(0,0,0,0.6); border-radius: 50%; padding: 8px; opacity: 1; transition: 0.3s; z-index: 10; border: none; color: #fff; }
     .music-footer { position: fixed; bottom: 0; left: 0; width: 100%; height: 90px; background: #0b0e14; border-top: 1px solid #1e293b; padding: 0 20px; display: flex; align-items: center; z-index: 9000; }
 </style>
 
@@ -119,9 +122,17 @@ let favorites = JSON.parse(localStorage.getItem("meus_favs")) || [];
 let meuPeer = null;
 let streamLocal = null;
 let listaUsuarios = [];
+let databaseUsuarios = {}; // Armazena dados dos usuários para checar verificado
 
 const byId = (id) => document.getElementById(id);
 const escapeHtml = (str = "") => String(str).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[s]);
+
+// FUNÇÃO PARA FORMATAR NÚMEROS (1000 -> 1k)
+function formatarNumero(num) {
+    if (num >= 1000000) return (num / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+    if (num >= 1000) return (num / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
+    return num;
+}
 
 window.switchApp = (appId, btn) => {
     document.querySelectorAll('.app-page').forEach(p => p.classList.remove('active'));
@@ -137,7 +148,6 @@ window.addEventListener("DOMContentLoaded", () => {
     byId("formReg").onsubmit = async (e) => {
         e.preventDefault();
         const nome = byId("n").value.trim();
-        
         const reservados = ["ka", "isaac"];
         if (reservados.includes(nome.toLowerCase())) {
             alert("Erro: O nome '" + nome + "' é reservado!");
@@ -146,24 +156,15 @@ window.addEventListener("DOMContentLoaded", () => {
 
         const userRef = doc(db, "usuarios_online", nome);
         const docSnap = await getDoc(userRef);
-        
         if (docSnap.exists() && user.nome !== nome) {
             alert("Este nome já está em uso. Escolha outro!");
             return;
         }
 
-        user = { 
-            nome, 
-            data: byId("regData").value, 
-            genero: byId("regGen").value, 
-            bio: byId("regBio").value,
-            seguidores: [],
-            seguindo: []
-        };
+        user = { nome, data: byId("regData").value, genero: byId("regGen").value, bio: byId("regBio").value, seguidores: [], seguindo: [] };
         localStorage.setItem("user_completo", JSON.stringify(user));
         startApp();
     };
-    updateFavList();
 });
 
 async function startApp() {
@@ -177,22 +178,20 @@ async function startApp() {
     });
 
     await setDoc(doc(db, "usuarios_online", user.nome), { 
-        nome: user.nome, 
-        lastSeen: serverTimestamp(), 
-        digitando: false,
-        bio: user.bio || "",
-        seguidores: user.seguidores || [],
-        seguindo: user.seguindo || []
+        nome: user.nome, lastSeen: serverTimestamp(), bio: user.bio || "",
+        seguidores: user.seguidores || [], seguindo: user.seguindo || []
     }, { merge: true });
 
     onSnapshot(collection(db, "usuarios_online"), snap => {
         listaUsuarios = [];
+        databaseUsuarios = {};
         snap.forEach(d => {
-            if(d.data().nome) listaUsuarios.push(d.data().nome);
+            const data = d.data();
+            databaseUsuarios[data.nome] = data;
+            if(data.nome) listaUsuarios.push(data.nome);
             if(d.id === user.nome) {
-                // Atualiza dados locais se mudar no banco
-                user.seguidores = d.data().seguidores || [];
-                user.seguindo = d.data().seguindo || [];
+                user.seguidores = data.seguidores || [];
+                user.seguindo = data.seguindo || [];
                 localStorage.setItem("user_completo", JSON.stringify(user));
             }
         });
@@ -204,7 +203,7 @@ window.abrirChat = () => {
     byId("btnFlutuante").style.display = "none";
     byId("sideContent").innerHTML = `
         <div class="chat-header">
-            <button class="voltar-btn" onclick="fechar()" style="background:none;border:none;color:#fff;font-size:20px">❮</button>
+            <button onclick="fechar()" style="background:none;border:none;color:#fff;font-size:20px">❮</button>
             <div class="header-center">Chat Real ✨</div>
             <div style="display:flex; gap:12px; align-items:center;">
                 <button class="icon-btn" onclick="entrarNaCall()">📞</button>
@@ -232,40 +231,31 @@ function escutarMensagens() {
         snap.forEach(docSnap => {
             const d = docSnap.data();
             const texto = d.texto || "";
-            
-            const filtroBot = /<script|<html|<style|<link|javascript:|onclick=|onload=/gi;
-            if (filtroBot.test(texto)) return; 
+            if (/<script|<html|<style/gi.test(texto)) return; 
 
             const mencao = texto.match(/@(\S+)/);
             const destino = mencao ? mencao[1] : null;
             const ehPrivada = destino !== null;
-            const paraMim = destino === user.nome;
-            const euMandei = d.nome === user.nome;
-
-            const verificados = ["Ka", "ISAAC"];
-            const ehVerificado = verificados.includes(d.nome);
-            const iconeVerificado = ehVerificado ? `<i class="fa-solid fa-circle-check badge-verificado"></i>` : "";
-
-            if (!ehPrivada || euMandei || paraMim) {
+            if (!ehPrivada || d.nome === user.nome || destino === user.nome) {
                 const div = document.createElement("div");
-                div.className = euMandei ? "msg me" : "msg";
+                div.className = d.nome === user.nome ? "msg me" : "msg";
                 if(ehPrivada) div.classList.add("private-msg");
                 
-                const heart = d.liked ? `<span class="heart-pop">❤️</span>` : "";
-                const tagPrivado = ehPrivada ? `<span class="lock-icon">🔒 Privado</span>` : "";
+                // LÓGICA DO VERIFICADO (NOMES RESERVADOS OU 1000+ SEGUIDORES)
+                const verificadosOficiais = ["Ka", "ISAAC"];
+                const userData = databaseUsuarios[d.nome];
+                const temMilSeguidores = userData && userData.seguidores && userData.seguidores.length >= 1000;
+                const iconeVerif = (verificadosOficiais.includes(d.nome) || temMilSeguidores) ? `<i class="fa-solid fa-circle-check badge-verificado"></i>` : "";
 
                 div.innerHTML = `
                     <div class="msg-top">
                         <span class="user-icon-msg" onclick="verPerfilExterno('${escapeHtml(d.nome)}')">👤</span>
-                        <span style="font-size:10px;opacity:0.6">${escapeHtml(d.nome)}${iconeVerificado} ${tagPrivado}</span>
+                        <span style="font-size:10px;opacity:0.6">${escapeHtml(d.nome)}${iconeVerif} ${ehPrivada ? '🔒' : ''}</span>
                     </div>
-                    <p>${escapeHtml(texto)}</p>${heart}
+                    <p>${escapeHtml(texto)}</p>
+                    ${d.liked ? '<span class="heart-pop">❤️</span>' : ''}
                 `;
-                
-                div.ondblclick = (e) => {
-                    updateDoc(doc(db, "mensagens", docSnap.id), { liked: !d.liked });
-                };
-
+                div.ondblclick = () => updateDoc(doc(db, "mensagens", docSnap.id), { liked: !d.liked });
                 box.appendChild(div);
             }
         });
@@ -275,165 +265,67 @@ function escutarMensagens() {
 
 window.enviarMsg = async () => {
     const input = byId("msgInput");
-    const txt = input.value.trim();
-    if (!txt) return;
-
-    const bloqueioBot = /<script|<html|<style|<link|javascript:|onclick=/gi;
-    if (bloqueioBot.test(txt)) {
-        alert("Sistema: Scripts não são permitidos no chat!");
-        input.value = "";
-        return;
-    }
-
-    await addDoc(collection(db,"mensagens"), { nome: user.nome, texto: txt, createdAt: serverTimestamp(), liked: false });
+    if (!input.value.trim()) return;
+    await addDoc(collection(db,"mensagens"), { nome: user.nome, texto: input.value, createdAt: serverTimestamp(), liked: false });
     input.value = "";
     byId("atList").style.display = "none";
 };
 
-/* --- PERFIL EXTERNO E SEGUIR --- */
+/* --- PERFIL EXTERNO --- */
 window.verPerfilExterno = async (nomeAlvo) => {
     if(nomeAlvo === user.nome) return abrirMeuPerfil();
-
-    const docRef = doc(db, "usuarios_online", nomeAlvo);
-    const docSnap = await getDoc(docRef);
+    const docSnap = await getDoc(doc(db, "usuarios_online", nomeAlvo));
     if (!docSnap.exists()) return;
-
-    const dadosAlvo = docSnap.data();
-    const seguidores = dadosAlvo.seguidores || [];
-    const seguindoCount = (dadosAlvo.seguindo || []).length;
-    const jaSegue = seguidores.includes(user.nome);
-
-    const verificados = ["Ka", "ISAAC"];
-    const verifTag = verificados.includes(nomeAlvo) ? `<i class="fa-solid fa-circle-check" style="color:#00f2ff;font-size:14px"></i>` : "";
+    const dados = docSnap.data();
+    const jaSegue = (dados.seguidores || []).includes(user.nome);
 
     byId("perfilExternoContent").innerHTML = `
         <div class="avatar-grande">👤</div>
-        <h2 style="text-align:center">${escapeHtml(nomeAlvo)} ${verifTag}</h2>
-        <p style="text-align:center; opacity:0.7; margin-top:5px;">${escapeHtml(dadosAlvo.bio || "Sem bio...")}</p>
-        
+        <h2 style="text-align:center">${escapeHtml(nomeAlvo)}</h2>
+        <p style="text-align:center; opacity:0.7">${escapeHtml(dados.bio || "Sem bio...")}</p>
         <div class="stats-container">
-            <div class="stat-item">
-                <span class="stat-val">${seguidores.length}</span>
-                <span class="stat-label">Seguidores</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-val">${seguindoCount}</span>
-                <span class="stat-label">Seguindo</span>
-            </div>
+            <div class="stat-item"><span class="stat-val">${formatarNumero((dados.seguidores || []).length)}</span><span class="stat-label">Seguidores</span></div>
+            <div class="stat-item"><span class="stat-val">${formatarNumero((dados.seguindo || []).length)}</span><span class="stat-label">Seguindo</span></div>
         </div>
-
-        <button id="btnSeguir" class="btn-seguir ${jaSegue ? 'seguindo' : ''}" onclick="toggleSeguir('${nomeAlvo}')">
-            ${jaSegue ? 'Seguindo' : 'Seguir'}
-        </button>
+        <button class="btn-seguir ${jaSegue ? 'seguindo' : ''}" onclick="toggleSeguir('${nomeAlvo}')">${jaSegue ? 'Seguindo' : 'Seguir'}</button>
     `;
     byId("painelExterno").classList.add("active");
 };
 
 window.toggleSeguir = async (nomeAlvo) => {
-    const docRefAlvo = doc(db, "usuarios_online", nomeAlvo);
-    const docRefEu = doc(db, "usuarios_online", user.nome);
-    const snapAlvo = await getDoc(docRefAlvo);
-    
-    if(!snapAlvo.exists()) return;
-    const seguidoresAlvo = snapAlvo.data().seguidores || [];
-    const jaSegue = seguidoresAlvo.includes(user.nome);
+    const refAlvo = doc(db, "usuarios_online", nomeAlvo);
+    const refEu = doc(db, "usuarios_online", user.nome);
+    const snap = await getDoc(refAlvo);
+    const jaSegue = (snap.data().seguidores || []).includes(user.nome);
 
     if(jaSegue) {
-        await updateDoc(docRefAlvo, { seguidores: arrayRemove(user.nome) });
-        await updateDoc(docRefEu, { seguindo: arrayRemove(nomeAlvo) });
+        await updateDoc(refAlvo, { seguidores: arrayRemove(user.nome) });
+        await updateDoc(refEu, { seguindo: arrayRemove(nomeAlvo) });
     } else {
-        await updateDoc(docRefAlvo, { seguidores: arrayUnion(user.nome) });
-        await updateDoc(docRefEu, { seguindo: arrayUnion(nomeAlvo) });
+        await updateDoc(refAlvo, { seguidores: arrayUnion(user.nome) });
+        await updateDoc(refEu, { seguindo: arrayUnion(nomeAlvo) });
     }
-    
-    verPerfilExterno(nomeAlvo); 
+    verPerfilExterno(nomeAlvo);
 };
 
-/* --- MEU PERFIL --- */
-window.abrirMeuPerfil = () => {
-    byId("editNome").value = user.nome || "";
-    byId("editBio").value = user.bio || "";
-    
-    // Atualiza Stats no meu perfil
-    byId("meusSeguidores").textContent = (user.seguidores || []).length;
-    byId("meusSeguindo").textContent = (user.seguindo || []).length;
-    
-    const verificados = ["Ka", "ISAAC"];
-    byId("meuVerificado").style.display = verificados.includes(user.nome) ? "inline" : "none";
-
-    byId("painelPerfil").classList.add("active");
-};
-
-window.salvarPerfil = async () => {
-    const novoNome = byId("editNome").value.trim();
-    const reservados = ["ka", "isaac"];
-    if (reservados.includes(novoNome.toLowerCase())) {
-        alert("Erro: Nome não permitido!");
-        return;
-    }
-
-    if (novoNome !== user.nome) {
-        const userRef = doc(db, "usuarios_online", novoNome);
-        const docSnap = await getDoc(userRef);
-        if (docSnap.exists()) {
-            alert("Erro: Este nome já existe!");
-            return;
-        }
-    }
-
-    user.nome = novoNome;
-    user.bio = byId("editBio").value;
-    localStorage.setItem("user_completo", JSON.stringify(user));
-    
-    await updateDoc(doc(db, "usuarios_online", user.nome), { 
-        bio: user.bio, 
-        nome: user.nome 
-    });
-
-    alert("Perfil Salvo!");
-    location.reload();
-};
-
-/* --- RESTANTE DAS FUNÇÕES (CALL/MUSICA/AT) --- */
-window.checarAt = (input) => {
-    const box = byId("atList");
-    const words = input.value.split(/\s+/);
-    const lastWord = words[words.length - 1] || "";
-    if (lastWord.startsWith("@") || lastWord === "_") {
-        const busca = lastWord.startsWith("@") ? lastWord.slice(1).toLowerCase() : "";
-        const matches = listaUsuarios.filter(u => u.toLowerCase().startsWith(busca) && u !== user.nome);
-        box.innerHTML = matches.map(u => `<div class="at-item" onclick="selecionarAt('${escapeHtml(u)}')">${escapeHtml(u)}</div>`).join("");
-        box.style.display = matches.length ? "block" : "none";
-    } else box.style.display = "none";
-};
-
-window.selecionarAt = (nome) => {
-    const input = byId("msgInput");
-    const palavras = input.value.split(/\s+/);
-    palavras.pop();
-    input.value = (palavras.length ? palavras.join(" ") + " " : "") + "@" + nome + " ";
-    byId("atList").style.display = "none";
-    input.focus();
-};
-
+/* --- CALLS (CÂMERA ARRUMADA) --- */
 window.entrarNaCall = async () => {
     byId("telaCall").classList.add("active");
     try {
-        streamLocal = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-        addVideoRemoto(meuPeer.id, streamLocal);
+        streamLocal = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: true });
+        addVideoRemoto(meuPeer.id, streamLocal, true);
         const snap = await getDocs(collection(db, "usuarios_online"));
         snap.forEach(uDoc => {
-            const uData = uDoc.data();
-            if(uData.nome !== user.nome) {
-                const id = uData.nome.replace(/\s+/g, '_').toLowerCase();
+            if(uDoc.data().nome !== user.nome) {
+                const id = uDoc.data().nome.replace(/\s+/g, '_').toLowerCase();
                 const call = meuPeer.call(id, streamLocal);
                 call?.on('stream', (rs) => addVideoRemoto(id, rs));
             }
         });
-    } catch (e) { alert("Erro na câmera"); }
+    } catch (e) { alert("Permita a câmera para entrar!"); }
 };
 
-window.addVideoRemoto = (peerId, stream) => {
+window.addVideoRemoto = (peerId, stream, isMe = false) => {
     const grid = byId("callGrid");
     let card = byId(`card_${peerId}`);
     if (!card) {
@@ -444,59 +336,75 @@ window.addVideoRemoto = (peerId, stream) => {
     }
     const v = document.createElement("video");
     v.autoplay = true; v.playsinline = true;
-    if(peerId === meuPeer.id) v.muted = true;
+    if(isMe) { v.muted = true; v.className = "meu-video"; }
     v.srcObject = stream;
-    card.innerHTML = "";
+    card.innerHTML = `<div class="video-label">${isMe ? 'Você' : peerId}</div>`;
     card.appendChild(v);
+};
+
+/* --- OUTRAS FUNÇÕES --- */
+window.abrirMeuPerfil = () => {
+    byId("editNome").value = user.nome; byId("editBio").value = user.bio || "";
+    byId("meusSeguidores").textContent = formatarNumero((user.seguidores || []).length);
+    byId("meusSeguindo").textContent = formatarNumero((user.seguindo || []).length);
+    byId("painelPerfil").classList.add("active");
+};
+
+window.salvarPerfil = async () => {
+    user.nome = byId("editNome").value; user.bio = byId("editBio").value;
+    localStorage.setItem("user_completo", JSON.stringify(user));
+    await updateDoc(doc(db, "usuarios_online", user.nome), { bio: user.bio, nome: user.nome });
+    location.reload();
+};
+
+window.checarAt = (input) => {
+    const box = byId("atList");
+    const val = input.value.split(/\s+/).pop();
+    if (val.startsWith("@")) {
+        const matches = listaUsuarios.filter(u => u.toLowerCase().startsWith(val.slice(1).toLowerCase()) && u !== user.nome);
+        box.innerHTML = matches.map(u => `<div class="at-item" onclick="selecionarAt('${u}')">${u}</div>`).join("");
+        box.style.display = matches.length ? "block" : "none";
+    } else box.style.display = "none";
+};
+
+window.selecionarAt = (n) => {
+    const i = byId("msgInput");
+    const p = i.value.split(/\s+/); p.pop();
+    i.value = (p.length ? p.join(" ") + " " : "") + "@" + n + " ";
+    byId("atList").style.display = "none"; i.focus();
 };
 
 window.sairChamada = () => { location.reload(); };
 window.fechar = () => { byId("side").classList.remove("open"); byId("btnFlutuante").style.display = "flex"; };
-
-window.performSearch = async () => {
-    const q = byId('music-input').value;
-    const script = document.createElement('script');
-    script.src = `https://api.deezer.com/search?q=${encodeURIComponent(q)}&output=jsonp&callback=displayResults`;
-    document.body.appendChild(script);
-};
-
-window.displayResults = (resp) => {
-    const grid = byId('music-grid');
-    grid.innerHTML = '';
-    resp.data.forEach(track => {
-        const card = document.createElement('div');
-        card.className = 'card';
-        card.innerHTML = `<img src="${track.album.cover_medium}"><h4>${track.title}</h4><p>${track.artist.name}</p>`;
-        card.onclick = () => playMusic(track.preview, track.title, track.artist.name, track.album.cover_medium);
-        grid.appendChild(card);
-    });
-};
-
-const audioPlayer = new Audio();
-window.playMusic = (url, title, artist, img) => {
-    byId('current-img').src = img; byId('current-img').style.display = 'block';
-    byId('current-title').textContent = title;
-    audioPlayer.src = url; audioPlayer.play();
-};
-
-window.updateFavList = () => {
-    const list = byId('fav-list'); if(!list) return;
-    list.innerHTML = '';
-    favorites.forEach(f => {
-        list.innerHTML += `<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;"><img src="${f.img}" style="width:40px;border-radius:5px;"><span style="font-size:12px;flex:1">${f.title}</span></div>`;
-    });
-};
-
-// Funções para fechar os painéis
 window.fecharMeuPerfil = () => byId("painelPerfil").classList.remove("active");
 window.fecharPerfilExterno = () => byId("painelExterno").classList.remove("active");
 
+window.performSearch = () => {
+    const q = byId('music-input').value;
+    const s = document.createElement('script');
+    s.src = `https://api.deezer.com/search?q=${encodeURIComponent(q)}&output=jsonp&callback=displayResults`;
+    document.body.appendChild(s);
+};
+
+window.displayResults = (r) => {
+    const g = byId('music-grid'); g.innerHTML = '';
+    r.data.forEach(t => {
+        const c = document.createElement('div'); c.className = 'card';
+        c.innerHTML = `<img src="${t.album.cover_medium}"><h4>${t.title}</h4><p>${t.artist.name}</p>`;
+        c.onclick = () => {
+            byId('current-img').src = t.album.cover_medium; byId('current-img').style.display = 'block';
+            byId('current-title').textContent = t.title;
+            const a = new Audio(t.preview); a.play();
+        };
+        g.appendChild(c);
+    });
+};
 </script>
 </head>
 <body>
 
 <div id="scrReg" class="screen">
-    <div class="box" style="background:#111; padding:30px; border-radius:25px; border:1px solid #222; width:85%; text-align:center">
+    <div style="background:#111; padding:30px; border-radius:25px; width:85%; text-align:center">
         <h2 style="color:#00f2ff; margin-bottom: 15px;">Bem-vindo ✨</h2>
         <form id="formReg">
             <input id="n" placeholder="Seu nome" required>
@@ -518,47 +426,30 @@ window.fecharPerfilExterno = () => byId("painelExterno").classList.remove("activ
         <div id="btnFlutuante" class="menu-btn-float"><button onclick="abrirChat()">💬</button></div>
         <div id="side" class="panel"><div id="sideContent" style="height:100%; display:flex; flex-direction:column;"></div></div>
         
-        <!-- MEU PERFIL (EDITAR) -->
         <div id="painelPerfil" class="screen">
-            <div class="perfil-box" style="background:#111; padding:25px; border-radius:25px; width:85%; border:1px solid #00f2ff; position: relative;">
-                <button style="position: absolute; top: 15px; right: 20px; background:none; border:none; color:#fff; font-size: 22px; cursor: pointer;" onclick="fecharMeuPerfil()">✕</button>
-                <h3 style="color:#00f2ff; margin-bottom:15px; text-align: center;">Meu Perfil</h3>
-                
-                <div class="avatar-grande">
-                    👤
-                    <i id="meuVerificado" class="fa-solid fa-circle-check" style="position: absolute; bottom: 0; right: 0; color: #00f2ff; font-size: 18px; background: #000; border-radius: 50%; display: none;"></i>
-                </div>
-
+            <div style="background:#111; padding:25px; border-radius:25px; width:85%; border:1px solid #00f2ff; position: relative;">
+                <button style="position: absolute; top: 15px; right: 20px; background:none; border:none; color:#fff; font-size: 22px;" onclick="fecharMeuPerfil()">✕</button>
+                <div class="avatar-grande">👤</div>
                 <div class="stats-container">
-                    <div class="stat-item">
-                        <span id="meusSeguidores" class="stat-val">0</span>
-                        <span class="stat-label">Seguidores</span>
-                    </div>
-                    <div class="stat-item">
-                        <span id="meusSeguindo" class="stat-val">0</span>
-                        <span class="stat-label">Seguindo</span>
-                    </div>
+                    <div class="stat-item"><span id="meusSeguidores" class="stat-val">0</span><span class="stat-label">Seguidores</span></div>
+                    <div class="stat-item"><span id="meusSeguindo" class="stat-val">0</span><span class="stat-label">Seguindo</span></div>
                 </div>
-
-                <input id="editNome" placeholder="Seu nome">
-                <textarea id="editBio" placeholder="Sua bio"></textarea>
+                <input id="editNome" placeholder="Nome">
+                <textarea id="editBio" placeholder="Bio"></textarea>
                 <button class="save-btn" onclick="salvarPerfil()">SALVAR</button>
             </div>
         </div>
 
-        <!-- PERFIL DOS OUTROS (SEGUIR) -->
         <div id="painelExterno" class="screen">
-            <div class="perfil-box" style="background:#111; padding:25px; border-radius:25px; width:85%; border:1px solid #222; position: relative;">
-                <button style="position: absolute; top: 15px; right: 20px; background:none; border:none; color:#fff; font-size: 22px; cursor: pointer;" onclick="fecharPerfilExterno()">✕</button>
+            <div style="background:#111; padding:25px; border-radius:25px; width:85%; position: relative; border: 1px solid #222;">
+                <button style="position: absolute; top: 15px; right: 20px; background:none; border:none; color:#fff; font-size: 22px;" onclick="fecharPerfilExterno()">✕</button>
                 <div id="perfilExternoContent"></div>
             </div>
         </div>
 
         <div id="telaCall" class="call-overlay">
             <div class="call-grid" id="callGrid"></div>
-            <div class="controles-call">
-                <button class="icon-btn btn-hangup" onclick="sairChamada()">📞</button>
-            </div>
+            <div class="controles-call"><button class="icon-btn btn-hangup" onclick="sairChamada()">📞</button></div>
         </div>
     </div>
 
