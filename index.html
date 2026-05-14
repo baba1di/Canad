@@ -8,7 +8,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
 <style>
-    /* RESET E NAVEGAÇÃO */
+    /* MANTENDO SEU CSS ORIGINAL */
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { background: #000; color: #fff; font-family: sans-serif; height: 100vh; overflow: hidden; }
     
@@ -19,7 +19,7 @@
     }
     .switch-btn {
         background: none; border: none; color: #666; font-weight: bold; font-size: 12px;
-        cursor: pointer; padding: 10px; transition: 0.3s;
+        cursor: pointer; padding: 10px; transition: 0.3s; display: flex; align-items: center; gap: 5px;
     }
     .switch-btn.active { color: #00f2ff; border-bottom: 2px solid #00f2ff; }
 
@@ -27,14 +27,13 @@
     .app-page { position: absolute; inset: 0; display: none; }
     .app-page.active { display: block; }
 
-    /* ESTILOS DO CHAT */
     :root { --main: #00f2ff; --bg: #000; }
     .chat-header { 
         display: flex; justify-content: space-between; align-items: center; 
         padding: 15px; background: #111; border-bottom: 1px solid #222;
         position: relative; z-index: 1001; 
     }
-    .icon-btn { background: #222; border: none; width: 45px; height: 45px; border-radius: 50%; color: var(--main); font-size: 20px; cursor: pointer; }
+    .icon-btn { background: #222; border: none; width: 45px; height: 45px; border-radius: 50%; color: var(--main); font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.3s; }
     .chat-wrapper { display: flex; flex-direction: column; height: calc(100% - 75px); position: relative; }
     #chatMsgs { flex:1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; scroll-behavior: smooth;}
     .msg { background: #1a1a1a; padding: 10px 15px; border-radius: 18px; max-width: 80%; align-self: flex-start; position: relative; border: 1px solid #222; display: flex; flex-direction: column; }
@@ -42,6 +41,10 @@
     
     .msg-top { display: flex; align-items: center; gap: 5px; margin-bottom: 4px; }
     .user-icon-msg { cursor: pointer; font-size: 14px; background: #333; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; position: relative; font-weight: bold; color: var(--main); text-transform: uppercase; }
+
+    .bear-icon { position: absolute; bottom: 8px; right: 10px; width: 18px; height: 18px; opacity: 1; filter: drop-shadow(0 0 2px rgba(0,0,0,0.5)); }
+    .msg.me .bear-icon { color: #000; }
+    .msg:not(.me) .bear-icon { color: var(--main); }
 
     .heart-pop { position: absolute; bottom: -8px; right: -5px; background: #000; border-radius: 50%; padding: 2px 5px; border: 1px solid #333; font-size: 14px; }
     .private-msg { border: 1px dashed var(--main) !important; background: rgba(0, 242, 255, 0.05) !important; }
@@ -80,7 +83,7 @@
     .stats-container { display: flex; justify-content: space-around; margin: 15px 0; border-top: 1px solid #222; padding-top: 10px; }
     .stat-val { display: block; font-weight: bold; color: var(--main); font-size: 18px; }
     .stat-label { font-size: 10px; opacity: 0.6; text-transform: uppercase; }
-    .btn-seguir { background: #fff; color: #000; border: none; padding: 10px; width: 100%; border-radius: 8px; font-weight: bold; cursor: pointer; }
+    .btn-seguir { background: #fff; color: #000; border: none; padding: 12px; width: 100%; border-radius: 12px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; }
     .btn-seguir.seguindo { background: #333; color: #fff; }
 
     /* MÚSICA */
@@ -89,9 +92,21 @@
     .search-bar-music { display: flex; align-items: center; background: #1a1f29; border-radius: 12px; padding: 5px 15px; flex: 1; margin-right: 15px; border: 1px solid transparent; }
     .search-bar-music input { background: transparent; border: none; padding: 10px; color: white; flex: 1; outline: none; }
     #music-grid { padding: 20px; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 20px; padding-bottom: 120px; }
-    .card { background: #1a1f29; padding: 12px; border-radius: 16px; cursor: pointer; }
+    .card { background: #1a1f29; padding: 12px; border-radius: 16px; cursor: pointer; position: relative; transition: 0.2s; -webkit-tap-highlight-color: transparent;}
+    .card:active { transform: scale(0.95); background: #252d3a; }
     .card img { width: 100%; border-radius: 12px; margin-bottom: 10px; }
     .music-footer { position: fixed; bottom: 0; left: 0; width: 100%; height: 90px; background: #0b0e14; border-top: 1px solid #1e293b; padding: 0 20px; display: flex; align-items: center; z-index: 9000; }
+
+    /* NOTIFICAÇÃO */
+    .notification-btn.active { background: #00f2ff; color: #000; box-shadow: 0 0 25px #00f2ff; }
+    .notif-item { padding: 12px; border-bottom: 1px solid #222; font-size: 13px; display: flex; align-items: center; gap: 10px; animation: fadeIn 0.3s; }
+    .notif-time { font-size: 10px; opacity: 0.5; margin-left: auto; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* ESTILO INDICAÇÃO MUSICA */
+    .indicacao-badge { position: absolute; top: 10px; left: 10px; background: #000; color: #00f2ff; padding: 5px; border-radius: 50%; border: 1px solid #00f2ff; z-index: 5; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 10px #00f2ff;}
+    .lista-usuarios-indicar { max-height: 300px; overflow-y: auto; background: #111; border-radius: 15px; padding: 10px; width: 100%; }
+    .user-indicar-item { padding: 12px; border-bottom: 1px solid #222; display: flex; align-items: center; gap: 10px; color: #fff; cursor: pointer; }
 </style>
 
 <script type="module">
@@ -118,56 +133,42 @@ let meuPeer = null;
 let streamLocal = null;
 let listaUsuarios = [];
 let databaseUsuarios = {};
-
-// CONTROLE GLOBAL DE AUDIO
+let unsubMsgs = null;
 let audioAtual = null;
-
+let musicaSelecionadaParaIndicar = null;
 const API_KEY_CORRETOR = "cTTUEHXN5jEg3bpM";
-
-const girias = {
-    "vc":"você", "vcs":"vocês", "tb":"também", "tmb":"também", "pq":"porque",
-    "q":"que", "blz":"beleza", "fds":"fim de semana", "obg":"obrigado",
-    "msg":"mensagem", "cmg":"comigo", "ctg":"contigo", "n":"não",
-    "nao":"não", "ja":"já", "eh":"é", "to":"tô", "vo":"vou", "fu3":"fui"
-};
+const girias = { "vc":"você", "vcs":"vocês", "tb":"também", "pq":"porque", "n":"não", "ja":"já", "eh":"é" };
 
 const byId = (id) => document.getElementById(id);
 const escapeHtml = (str = "") => String(str).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[s]);
 
+const pandaSvg = `<svg class="bear-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11.25 17.25h1.5L12 18z"/><path d="m15 12 2 2"/><path d="M18 6.5a.5.5 0 0 0-.5-.5"/><path d="M20.69 9.67a4.5 4.5 0 1 0-7.04-5.5 8.35 8.35 0 0 0-3.3 0 4.5 4.5 0 1 0-7.04 5.5C2.49 11.2 2 12.88 2 14.5 2 19.47 6.48 22 12 22s10-2.53 10-7.5c0-1.62-.48-3.3-1.3-4.83"/><path d="M6 6.5a.495.495 0 0 1 .5-.5"/><path d="m9 12-2 2"/></svg>`;
+
+const iconSeguir = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="22" x2="16" y1="11" y2="11"/></svg>`;
+const iconDeixarSeguir = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 21a8 8 0 0 1 13.292-6"/><circle cx="10" cy="8" r="5"/><path d="M22 19h-6"/></svg>`;
+
+const starUserIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-user-star"><path d="M16.051 12.616a1 1 0 0 1 1.909.024l.737 1.452a1 1 0 0 0 .737.535l1.634.256a1 1 0 0 1 .588 1.806l-1.172 1.168a1 1 0 0 0-.282.866l.259 1.613a1 1 0 0 1-1.541 1.134l-1.465-.75a1 1 0 0 0-.912 0l-1.465.75a1 1 0 0 1-1.539-1.133l.258-1.613a1 1 0 0 0-.282-.866l-1.156-1.153a1 1 0 0 1 .572-1.822l1.633-.256a1 1 0 0 0 .737-.535z"/><path d="M8 15H7a4 4 0 0 0-4 4v2"/><circle cx="10" cy="7" r="4"/></svg>`;
+
 function formatarNumero(num) {
     if (!num) return 0;
-    if (num >= 1000000) return (num / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
-    if (num >= 1000) return (num / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
+    if (num >= 1000) return (num / 1000).toFixed(1) + 'k';
     return num;
 }
 
-// LOGICA DE VERIFICAÇÃO CENTRALIZADA
 function checarVerificado(nome, seguidoresCount) {
     const oficiais = ["Ka", "ISAAC"];
     return oficiais.includes(nome) || seguidoresCount >= 1000;
 }
 
 async function realizarCorrecao(textoOriginal) {
-    let textoProcessado = textoOriginal.split(" ").map(p => {
-        const limpa = p.toLowerCase().replace(/[^\w]/g, '');
-        return girias[limpa] || p;
-    }).join(" ");
-
+    let textoProcessado = textoOriginal.split(" ").map(p => girias[p.toLowerCase()] || p).join(" ");
     try {
-        const url = `https://api.textgears.com/grammar?text=${encodeURIComponent(textoProcessado)}&language=pt-BR&key=${API_KEY_CORRETOR}`;
-        const res = await fetch(url);
+        const res = await fetch(`https://api.textgears.com/grammar?text=${encodeURIComponent(textoProcessado)}&language=pt-BR&key=${API_KEY_CORRETOR}`);
         const data = await res.json();
-
         if (data.response && data.response.errors) {
-            const erros = data.response.errors;
-            erros.reverse().forEach(erro => {
-                if (erro.better && erro.better.length) {
-                    textoProcessado = textoProcessado.substring(0, erro.offset) + erro.better[0] + textoProcessado.substring(erro.offset + erro.length);
-                }
-            });
+            data.response.errors.reverse().forEach(e => { if(e.better.length) textoProcessado = textoProcessado.substring(0, e.offset) + e.better[0] + textoProcessado.substring(e.offset + e.length); });
         }
-    } catch (e) { console.error("Erro na API de correção"); }
-
+    } catch (e) {}
     return textoProcessado.charAt(0).toUpperCase() + textoProcessado.slice(1);
 }
 
@@ -179,69 +180,41 @@ window.switchApp = (appId, btn) => {
 };
 
 window.addEventListener("DOMContentLoaded", () => {
-    if (user && user.nome) startApp();
-    else byId("scrReg").classList.add("active");
-
+    if (user && user.nome) startApp(); else byId("scrReg").classList.add("active");
     byId("formReg").onsubmit = async (e) => {
         e.preventDefault();
-        const nomeInput = byId("n").value.trim();
-        
-        const userRef = doc(db, "usuarios_online", nomeInput);
-        const docSnap = await getDoc(userRef);
-        
-        if (docSnap.exists()) {
-            alert("Este nome já está sendo usado!");
-            return;
-        }
-
-        user = { nome: nomeInput, data: byId("regData").value, genero: byId("regGen").value, bio: byId("regBio").value, seguidores: [], seguindo: [] };
+        user = { nome: byId("n").value.trim(), data: byId("regData").value, genero: byId("regGen").value, bio: byId("regBio").value, seguidores: [], seguindo: [] };
         localStorage.setItem("user_completo", JSON.stringify(user));
         startApp();
     };
 });
 
-async function startApp() {
-    byId("scrReg").classList.remove("active");
-    const peerId = (user.nome || "anon").replace(/\s+/g, '_').toLowerCase();
-    meuPeer = new Peer(peerId);
-
-    meuPeer.on('call', (call) => {
-        call.answer(streamLocal);
-        call.on('stream', (remoteStream) => addVideoRemoto(call.peer, remoteStream));
-    });
-
-    await setDoc(doc(db, "usuarios_online", user.nome), { 
-        nome: user.nome, lastSeen: serverTimestamp(), bio: user.bio || "",
-        seguidores: user.seguidores || [], seguindo: user.seguindo || []
-    }, { merge: true });
-
-    onSnapshot(collection(db, "usuarios_online"), snap => {
-        listaUsuarios = [];
-        databaseUsuarios = {};
-        snap.forEach(d => {
-            const data = d.data();
-            databaseUsuarios[data.nome] = data;
-            if(data.nome) listaUsuarios.push(data.nome);
-            
-            if(data.nome === user.nome) {
-                user.seguidores = data.seguidores || [];
-                user.seguindo = data.seguindo || [];
-                if(byId("painelPerfil").classList.contains("active")) {
-                    atualizarVisualPerfil();
-                }
-            }
-        });
+async function registrarNotificacao(tipo, quem, para, extra = "") {
+    if(quem === para) return;
+    await addDoc(collection(db, "notificacoes"), {
+        tipo: tipo, de: quem, para: para, extra: extra, timestamp: serverTimestamp(), lida: false
     });
 }
 
-function atualizarVisualPerfil() {
-    const inicial = user.nome ? user.nome.charAt(0) : "👤";
-    const verif = checarVerificado(user.nome, user.seguidores.length);
-    const mini = verif ? `<i class="fa-solid fa-circle-check mini-verif"></i>` : "";
-    
-    byId("meuAvatarPerfil").innerHTML = `${inicial}${mini}`;
-    byId("meusSeguidores").textContent = formatarNumero(user.seguidores.length);
-    byId("meusSeguindo").textContent = formatarNumero(user.seguindo.length);
+async function startApp() {
+    byId("scrReg").classList.remove("active");
+    meuPeer = new Peer((user.nome || "anon").replace(/\s+/g, '_').toLowerCase());
+    meuPeer.on('call', (call) => { 
+        registrarNotificacao("ligou", call.peer, user.nome);
+        call.answer(streamLocal); 
+        call.on('stream', (rs) => addVideoRemoto(call.peer, rs)); 
+    });
+    await setDoc(doc(db, "usuarios_online", user.nome), { nome: user.nome, lastSeen: serverTimestamp(), bio: user.bio, seguidores: user.seguidores, seguindo: user.seguindo }, { merge: true });
+    onSnapshot(collection(db, "usuarios_online"), snap => {
+        listaUsuarios = [];
+        snap.forEach(d => {
+            const data = d.data();
+            databaseUsuarios[data.nome] = data;
+            listaUsuarios.push(data.nome);
+            if(data.nome === user.nome) { user.seguidores = data.seguidores || []; user.seguindo = data.seguindo || []; }
+        });
+    });
+    escutarMensagens();
 }
 
 window.abrirChat = () => {
@@ -249,13 +222,16 @@ window.abrirChat = () => {
     byId("sideContent").innerHTML = `
         <div class="chat-header">
             <button onclick="fechar()" style="background:none;border:none;color:#fff;font-size:20px">❮</button>
-            <div class="header-center">Chat Corrigido ✨</div>
-            <div style="display:flex; gap:12px; align-items:center;">
+            <div style="display:flex; gap:8px; align-items:center;">
+                <button class="icon-btn" id="bellBtn" onclick="toggleNotificacoes()">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.268 21a2 2 0 0 0 3.464 0"/><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"/></svg>
+                </button>
                 <button class="icon-btn" onclick="entrarNaCall()">📞</button>
                 <button class="icon-btn" onclick="abrirMeuPerfil()">👤</button>
             </div>
         </div>
         <div class="chat-wrapper">
+            <div id="notifPanel" style="display:none; background:#111; border-bottom:1px solid #222; max-height:200px; overflow-y:auto;"></div>
             <div id="chatMsgs"></div>
             <div id="atList" class="at-box"></div>
             <div class="chat-bar">
@@ -268,37 +244,62 @@ window.abrirChat = () => {
     escutarMensagens();
 };
 
+window.toggleNotificacoes = () => {
+    const btn = byId('bellBtn');
+    const panel = byId('notifPanel');
+    btn.classList.toggle('active');
+    if (panel.style.display === "none") {
+        panel.style.display = "block";
+        carregarNotificacoes();
+    } else {
+        panel.style.display = "none";
+    }
+};
+
+async function carregarNotificacoes() {
+    const panel = byId('notifPanel');
+    panel.innerHTML = '<div style="padding:10px; font-size:11px; color:#666;">Carregando alertas...</div>';
+    const q = query(collection(db, "notificacoes"), orderBy("timestamp", "desc"), limit(10));
+    const snap = await getDocs(q);
+    let html = "";
+    snap.forEach(d => {
+        const data = d.data();
+        if(data.para === user.nome) {
+            let icone = "🔔"; let texto = "";
+            if(data.tipo === "seguiu") { icone = "➕"; texto = `<b>${data.de}</b> começou a te seguir!`; }
+            if(data.tipo === "parou") { icone = "➖"; texto = `<b>${data.de}</b> parou de te seguir.`; }
+            if(data.tipo === "perfil") { icone = "👀"; texto = `<b>${data.de}</b> visitou seu perfil!`; }
+            if(data.tipo === "mencao") { icone = "🏷️"; texto = `<b>${data.de}</b> te marcou no chat!`; }
+            if(data.tipo === "ligou") { icone = "📞"; texto = `<b>${data.de}</b> te ligou!`; }
+            if(data.tipo === "musica") { icone = "🎵"; texto = `<b>${data.de}</b> te indicou uma música: ${data.extra}!`; }
+            html += `<div class="notif-item">${icone} ${texto}</div>`;
+        }
+    });
+    panel.innerHTML = html || '<div style="padding:20px; text-align:center; opacity:0.5; font-size:12px;">Nenhuma atividade nova.</div>';
+}
+
 function escutarMensagens() {
     const box = byId("chatMsgs");
-    const q = query(collection(db,"mensagens"), orderBy("createdAt", "asc"), limit(100));
-    onSnapshot(q, snap => {
+    if(!box) return;
+    if(unsubMsgs) unsubMsgs();
+    const q = query(collection(db,"mensagens"), orderBy("createdAt", "asc"));
+    unsubMsgs = onSnapshot(q, snap => {
         box.innerHTML = "";
         snap.forEach(docSnap => {
             const d = docSnap.data();
-            const texto = d.texto || "";
-            const mencao = texto.match(/@(\S+)/);
-            const destino = mencao ? mencao[1] : null;
-            const ehPrivada = destino !== null;
-
-            if (!ehPrivada || d.nome === user.nome || destino === user.nome) {
+            const destino = (d.texto.match(/@(\S+)/) || [])[1];
+            if (!destino || d.nome === user.nome || destino === user.nome) {
                 const div = document.createElement("div");
                 div.className = d.nome === user.nome ? "msg me" : "msg";
-                if(ehPrivada) div.classList.add("private-msg");
-                
-                const userData = databaseUsuarios[d.nome];
-                const segs = userData?.seguidores?.length || 0;
-                const verif = checarVerificado(d.nome, segs);
-                
-                const selo = verif ? `<i class="fa-solid fa-circle-check badge-verificado"></i>` : "";
-                const mini = verif ? `<i class="fa-solid fa-circle-check mini-verif"></i>` : "";
-                const inicial = d.nome ? d.nome.charAt(0) : "?";
-
+                if(destino) div.classList.add("private-msg");
+                const verif = checarVerificado(d.nome, (databaseUsuarios[d.nome]?.seguidores || []).length);
                 div.innerHTML = `
                     <div class="msg-top">
-                        <span class="user-icon-msg" onclick="verPerfilExterno('${escapeHtml(d.nome)}')">${inicial}${mini}</span>
-                        <span style="font-size:10px;opacity:0.6">${escapeHtml(d.nome)}${selo}</span>
+                        <span class="user-icon-msg" onclick="decidirPerfil('${d.nome}')">${d.nome.charAt(0)}${verif ? '<i class="fa-solid fa-circle-check mini-verif"></i>' : ''}</span>
+                        <span style="font-size:10px;opacity:0.8;font-weight:bold;">${d.nome}${verif ? '<i class="fa-solid fa-circle-check badge-verificado"></i>' : ''}</span>
                     </div>
-                    <p>${escapeHtml(texto)}</p>
+                    <p>${escapeHtml(d.texto)}</p>
+                    ${pandaSvg}
                     ${d.liked ? '<span class="heart-pop">❤️</span>' : ''}
                 `;
                 div.ondblclick = () => updateDoc(doc(db, "mensagens", docSnap.id), { liked: !d.liked });
@@ -309,147 +310,129 @@ function escutarMensagens() {
     });
 }
 
+// LOGICA PARA DIFERENCIAR SEU PERFIL DO PERFIL DE OUTROS
+window.decidirPerfil = (nomeClicado) => {
+    if (nomeClicado === user.nome) {
+        abrirMeuPerfil();
+    } else {
+        verPerfilExterno(nomeClicado);
+    }
+};
+
 window.enviarMsg = async () => {
     const input = byId("msgInput");
-    const valorOriginal = input.value.trim();
-    if (!valorOriginal) return;
-    
-    input.value = "Corrigindo...";
-    input.disabled = true;
-    const textoCorrigido = await realizarCorrecao(valorOriginal);
-
-    await addDoc(collection(db,"mensagens"), { 
-        nome: user.nome, 
-        texto: textoCorrigido, 
-        createdAt: serverTimestamp(), 
-        liked: false 
-    });
-
-    input.value = "";
-    input.disabled = false;
-    input.focus();
-    byId("atList").style.display = "none";
+    const val = input.value.trim();
+    if (!val) return;
+    const mencao = (val.match(/@(\S+)/) || [])[1];
+    if(mencao) registrarNotificacao("mencao", user.nome, mencao);
+    input.value = "..."; input.disabled = true;
+    const txt = await realizarCorrecao(val);
+    await addDoc(collection(db,"mensagens"), { nome: user.nome, texto: txt, createdAt: serverTimestamp(), liked: false });
+    input.value = ""; input.disabled = false; input.focus(); byId("atList").style.display = "none";
 };
 
 window.entrarNaCall = async () => {
     byId("telaCall").classList.add("active");
-    try {
-        streamLocal = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: true });
-        addVideoRemoto(meuPeer.id, streamLocal, true);
-        const snap = await getDocs(collection(db, "usuarios_online"));
-        snap.forEach(uDoc => {
-            if(uDoc.data().nome !== user.nome) {
-                const id = uDoc.data().nome.replace(/\s+/g, '_').toLowerCase();
-                const call = meuPeer.call(id, streamLocal);
-                call?.on('stream', (rs) => addVideoRemoto(id, rs));
-            }
-        });
-    } catch (e) { alert("Erro ao acessar câmera."); }
+    streamLocal = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    addVideoRemoto(meuPeer.id, streamLocal, true);
+    listaUsuarios.forEach(n => { 
+        if(n !== user.nome) {
+            registrarNotificacao("ligou", user.nome, n);
+            meuPeer.call(n.replace(/\s+/g, '_').toLowerCase(), streamLocal).on('stream', rs => addVideoRemoto(n, rs)); 
+        }
+    });
 };
 
-window.addVideoRemoto = (peerId, stream, isMe = false) => {
+window.addVideoRemoto = (id, stream, isMe = false) => {
     const grid = byId("callGrid");
-    let card = byId(`card_${peerId}`);
-    if (!card) {
-        card = document.createElement("div");
-        card.className = "video-card";
-        card.id = `card_${peerId}`;
-        grid.appendChild(card);
-    }
-    const v = document.createElement("video");
-    v.autoplay = true; v.playsinline = true;
+    let card = byId(`card_${id}`);
+    if (!card) { card = document.createElement("div"); card.className = "video-card"; card.id = `card_${id}`; grid.appendChild(card); }
+    const v = document.createElement("video"); v.autoplay = true; v.playsinline = true; v.srcObject = stream;
     if(isMe) { v.muted = true; v.className = "meu-video"; }
-    v.srcObject = stream;
-    card.innerHTML = `<div class="video-label">${isMe ? 'Você' : peerId}</div>`;
-    card.appendChild(v);
+    card.innerHTML = `<div class="video-label">${isMe ? 'Você' : id}</div>`; card.appendChild(v);
 };
 
-window.verPerfilExterno = async (nomeAlvo) => {
-    if(nomeAlvo === user.nome) return abrirMeuPerfil();
-    const docSnap = await getDoc(doc(db, "usuarios_online", nomeAlvo));
-    if (!docSnap.exists()) return;
-    const dados = docSnap.data();
-    const jaSegue = (dados.seguidores || []).includes(user.nome);
-    const inicial = nomeAlvo ? nomeAlvo.charAt(0) : "👤";
-    
-    const verif = checarVerificado(nomeAlvo, (dados.seguidores || []).length);
-    const selo = verif ? `<i class="fa-solid fa-circle-check badge-verificado"></i>` : "";
-    const mini = verif ? `<i class="fa-solid fa-circle-check mini-verif"></i>` : "";
-
+window.verPerfilExterno = async (n) => {
+    registrarNotificacao("perfil", user.nome, n);
+    const d = (await getDoc(doc(db, "usuarios_online", n))).data();
+    const ja = (d.seguidores || []).includes(user.nome);
+    const verif = checarVerificado(n, (d.seguidores || []).length);
     byId("perfilExternoContent").innerHTML = `
-        <div class="avatar-grande">${inicial}${mini}</div>
-        <h2 style="text-align:center">${escapeHtml(nomeAlvo)}${selo}</h2>
+        <div class="avatar-grande">${n.charAt(0)}${verif ? '<i class="fa-solid fa-circle-check mini-verif"></i>' : ''}</div>
+        <h2 style="text-align:center">${n}${verif ? '<i class="fa-solid fa-circle-check badge-verificado"></i>' : ''}</h2>
         <div class="stats-container">
-            <div class="stat-item"><span class="stat-val">${formatarNumero((dados.seguidores || []).length)}</span><span class="stat-label">Seguidores</span></div>
-            <div class="stat-item"><span class="stat-val">${formatarNumero((dados.seguindo || []).length)}</span><span class="stat-label">Seguindo</span></div>
+            <div class="stat-item"><span class="stat-val">${formatarNumero(d.seguidores.length)}</span><span class="stat-label">Seguidores</span></div>
+            <div class="stat-item"><span class="stat-val">${formatarNumero(d.seguindo.length)}</span><span class="stat-label">Seguindo</span></div>
         </div>
-        <button class="btn-seguir ${jaSegue ? 'seguindo' : ''}" onclick="toggleSeguir('${nomeAlvo}')">${jaSegue ? 'Seguindo' : 'Seguir'}</button>
+        <button class="btn-seguir ${ja ? 'seguindo' : ''}" onclick="toggleSeguir('${n}')">
+            ${ja ? iconDeixarSeguir + ' Parar de Seguir' : iconSeguir + ' Seguir'}
+        </button>
     `;
     byId("painelExterno").classList.add("active");
 };
 
-window.toggleSeguir = async (nomeAlvo) => {
-    const refAlvo = doc(db, "usuarios_online", nomeAlvo);
+window.toggleSeguir = async (n) => {
+    const refAlvo = doc(db, "usuarios_online", n);
     const refEu = doc(db, "usuarios_online", user.nome);
     const snap = await getDoc(refAlvo);
-    const jaSegue = (snap.data().seguidores || []).includes(user.nome);
-    if(jaSegue) {
-        await updateDoc(refAlvo, { seguidores: arrayRemove(user.nome) });
-        await updateDoc(refEu, { seguindo: arrayRemove(nomeAlvo) });
+    if((snap.data().seguidores || []).includes(user.nome)) {
+        await updateDoc(refAlvo, { seguidores: arrayRemove(user.nome) }); 
+        await updateDoc(refEu, { seguindo: arrayRemove(n) });
+        registrarNotificacao("parou", user.nome, n);
     } else {
-        await updateDoc(refAlvo, { seguidores: arrayUnion(user.nome) });
-        await updateDoc(refEu, { seguindo: arrayUnion(nomeAlvo) });
+        await updateDoc(refAlvo, { seguidores: arrayUnion(user.nome) }); 
+        await updateDoc(refEu, { seguindo: arrayUnion(n) });
+        registrarNotificacao("seguiu", user.nome, n);
     }
-    verPerfilExterno(nomeAlvo);
+    verPerfilExterno(n);
 };
 
-window.abrirMeuPerfil = () => {
+window.abrirMeuPerfil = () => { 
     byId("editNome").value = user.nome; 
-    byId("editBio").value = user.bio || "";
-    atualizarVisualPerfil();
-    byId("painelPerfil").classList.add("active");
+    byId("editBio").value = user.bio || ""; 
+    atualizarVisualPerfil(); 
+    byId("painelPerfil").classList.add("active"); 
 };
+
+function atualizarVisualPerfil() { 
+    const verif = checarVerificado(user.nome, user.seguidores.length);
+    byId("meuAvatarPerfil").innerHTML = `${user.nome.charAt(0)}${verif ? '<i class="fa-solid fa-circle-check mini-verif"></i>' : ''}`;
+    byId("meusSeguidores").textContent = formatarNumero(user.seguidores.length); 
+    byId("meusSeguindo").textContent = formatarNumero(user.seguindo.length);
+}
 
 window.salvarPerfil = async () => {
     const novoNome = byId("editNome").value.trim();
-    const oldName = user.nome;
+    const velhaBio = user.bio;
+    const novaBio = byId("editBio").value;
     
-    if(novoNome !== oldName) {
-        const docSnap = await getDoc(doc(db, "usuarios_online", novoNome));
-        if(docSnap.exists()){
-            alert("Este nome já existe!"); return;
-        }
-        await deleteDoc(doc(db, "usuarios_online", oldName));
+    // Se mudou o nome, precisamos lidar com a transição no banco
+    if(novoNome && novoNome !== user.nome) {
+        await deleteDoc(doc(db, "usuarios_online", user.nome));
+        user.nome = novoNome;
     }
     
-    user.nome = novoNome; 
-    user.bio = byId("editBio").value;
+    user.bio = novaBio;
     localStorage.setItem("user_completo", JSON.stringify(user));
-    
     await setDoc(doc(db, "usuarios_online", user.nome), { 
-        bio: user.bio, 
-        nome: user.nome,
-        seguidores: user.seguidores,
-        seguindo: user.seguindo,
-        lastSeen: serverTimestamp()
-    });
+        nome: user.nome, bio: user.bio, lastSeen: serverTimestamp(), 
+        seguidores: user.seguidores, seguindo: user.seguindo 
+    }, { merge: true });
     
     location.reload();
 };
 
-window.checarAt = (input) => {
-    const box = byId("atList");
-    const val = input.value.split(/\s+/).pop();
-    if (val.startsWith("@")) {
+window.checarAt = (i) => {
+    const val = i.value.split(/\s+/).pop();
+    if(val.startsWith("@")) {
         const matches = listaUsuarios.filter(u => u.toLowerCase().startsWith(val.slice(1).toLowerCase()) && u !== user.nome);
-        box.innerHTML = matches.map(u => `<div class="at-item" onclick="selecionarAt('${u}')">${u}</div>`).join("");
-        box.style.display = matches.length ? "block" : "none";
-    } else box.style.display = "none";
+        byId("atList").innerHTML = matches.map(u => `<div class="at-item" onclick="selecionarAt('${u}')">${u}</div>`).join("");
+        byId("atList").style.display = matches.length ? "block" : "none";
+    } else byId("atList").style.display = "none";
 };
 
 window.selecionarAt = (n) => {
-    const i = byId("msgInput");
-    const p = i.value.split(/\s+/); p.pop();
+    const i = byId("msgInput"); const p = i.value.split(/\s+/); p.pop();
     i.value = (p.length ? p.join(" ") + " " : "") + "@" + n + " ";
     byId("atList").style.display = "none"; i.focus();
 };
@@ -458,33 +441,78 @@ window.sairChamada = () => { location.reload(); };
 window.fechar = () => { byId("side").classList.remove("open"); byId("btnFlutuante").style.display = "flex"; };
 window.fecharMeuPerfil = () => byId("painelPerfil").classList.remove("active");
 window.fecharPerfilExterno = () => byId("painelExterno").classList.remove("active");
-
 window.performSearch = () => {
     const q = byId('music-input').value;
-    const s = document.createElement('script');
-    s.src = `https://api.deezer.com/search?q=${encodeURIComponent(q)}&output=jsonp&callback=displayResults`;
+    const s = document.createElement('script'); s.src = `https://api.deezer.com/search?q=${encodeURIComponent(q)}&output=jsonp&callback=displayResults`;
     document.body.appendChild(s);
 };
 
+// MODIFICAÇÃO PARA O LONG-PRESS (SEGURAR) NA MUSICA
 window.displayResults = (r) => {
-    const g = byId('music-grid'); g.innerHTML = '';
-    r.data.forEach(t => {
-        const c = document.createElement('div'); c.className = 'card';
-        c.innerHTML = `<img src="${t.album.cover_medium}"><h4>${t.title}</h4><p>${t.artist.name}</p>`;
-        c.onclick = () => {
-            // LOGICA PARA PARAR O AUDIO ANTERIOR E TOCAR O NOVO
-            if (audioAtual) {
-                audioAtual.pause();
-                audioAtual.currentTime = 0;
-            }
-            byId('current-img').src = t.album.cover_medium; byId('current-img').style.display = 'block';
-            byId('current-title').textContent = t.title;
-            audioAtual = new Audio(t.preview);
-            audioAtual.play();
-        };
-        g.appendChild(c);
-    });
+    byId('music-grid').innerHTML = r.data.map(t => {
+        return `
+        <div class="card" 
+             onclick="playM('${t.preview}', '${t.album.cover_medium}', '${t.title}')"
+             oncontextmenu="event.preventDefault(); abrirPainelIndicar('${t.title}')"
+             style="-webkit-touch-callout: none;">
+            <img src="${t.album.cover_medium}">
+            <h4>${t.title}</h4>
+            <p>${t.artist.name}</p>
+        </div>`;
+    }).join("");
 };
+
+window.abrirPainelIndicar = (nomeMusica) => {
+    musicaSelecionadaParaIndicar = nomeMusica;
+    let html = `
+        <div style="background:#000; padding:20px; border-radius:20px; border:1px solid #00f2ff; width:90%; max-width:400px; position:relative;">
+            <button style="position:absolute; top:10px; right:10px; background:none; border:none; color:#fff;" onclick="fecharPainelIndicar()">✕</button>
+            <div style="display:flex; align-items:center; gap:10px; margin-bottom:20px;">
+                ${starUserIcon}
+                <h3 style="color:#00f2ff;">Indicar para...</h3>
+            </div>
+            <p style="font-size:12px; margin-bottom:15px; opacity:0.7;">Indicar: ${nomeMusica}</p>
+            <div class="lista-usuarios-indicar">
+                ${listaUsuarios.map(u => `
+                    <div class="user-indicar-item" onclick="confirmarIndicar('${u}')">
+                        <div style="width:30px; height:30px; background:#222; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold; color:#00f2ff;">${u.charAt(0)}</div>
+                        <span>${u}</span>
+                    </div>
+                `).join("")}
+            </div>
+        </div>
+    `;
+    byId("painelIndicar").innerHTML = html;
+    byId("painelIndicar").classList.add("active");
+};
+
+window.fecharPainelIndicar = () => byId("painelIndicar").classList.remove("active");
+
+window.confirmarIndicar = async (paraQuem) => {
+    await registrarNotificacao("musica", user.nome, paraQuem, musicaSelecionadaParaIndicar);
+    fecharPainelIndicar();
+    alert("Indicação enviada!");
+};
+
+window.playM = (u, img, t) => {
+    if(audioAtual) audioAtual.pause();
+    byId('current-img').src = img; byId('current-img').style.display='block'; byId('current-title').textContent = t;
+    audioAtual = new Audio(u); audioAtual.play();
+};
+
+// MONITORAR NOTIFICAÇÕES DE MÚSICA PARA MOSTRAR A ESTRELA
+onSnapshot(collection(db, "notificacoes"), snap => {
+    snap.forEach(d => {
+        const data = d.data();
+        if(data.para === user.nome && data.tipo === "musica") {
+            byId("notifMusicaIcon").style.display = "flex";
+            byId("notifMusicaIcon").onclick = () => {
+                alert(`${data.de} te indicou a música: ${data.extra}`);
+                byId("notifMusicaIcon").style.display = "none";
+            };
+        }
+    });
+});
 </script>
 </head>
 <body>
@@ -504,7 +532,9 @@ window.displayResults = (r) => {
 
 <div id="app-switcher">
     <button class="switch-btn active" onclick="switchApp('pageChat', this)">CONVERSAR 💬</button>
-    <button class="switch-btn" onclick="switchApp('pageMusic', this)">MÚSICA 🎵</button>
+    <button class="switch-btn" onclick="switchApp('pageMusic', this)">
+        MÚSICA <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><path d="m9 9 12-2"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+    </button>
 </div>
 
 <div class="main-wrapper">
@@ -520,8 +550,18 @@ window.displayResults = (r) => {
                     <div class="stat-item"><span id="meusSeguidores" class="stat-val">0</span><span class="stat-label">Seguidores</span></div>
                     <div class="stat-item"><span id="meusSeguindo" class="stat-val">0</span><span class="stat-label">Seguindo</span></div>
                 </div>
-                <input id="editNome" placeholder="Nome">
-                <textarea id="editBio" placeholder="Bio"></textarea>
+                <div style="position: relative;">
+                    <span style="position: absolute; top: 25px; right: 15px; color: #666;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11.5 15H7a4 4 0 0 0-4 4v2"/><path d="M21.378 16.626a1 1 0 0 0-3.004-3.004l-4.01 4.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z"/><circle cx="10" cy="7" r="4"/></svg>
+                    </span>
+                    <input id="editNome" placeholder="Nome">
+                </div>
+                <div style="position: relative;">
+                    <span style="position: absolute; top: 25px; right: 15px; color: #666;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11.5 15H7a4 4 0 0 0-4 4v2"/><path d="M21.378 16.626a1 1 0 0 0-3.004-3.004l-4.01 4.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z"/><circle cx="10" cy="7" r="4"/></svg>
+                    </span>
+                    <textarea id="editBio" placeholder="Bio"></textarea>
+                </div>
                 <button class="save-btn" onclick="salvarPerfil()">SALVAR</button>
             </div>
         </div>
@@ -541,6 +581,9 @@ window.displayResults = (r) => {
 
     <div id="pageMusic" class="app-page">
         <header class="music-header">
+            <div id="notifMusicaIcon" class="indicacao-badge" style="display:none;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-user-star"><path d="M16.051 12.616a1 1 0 0 1 1.909.024l.737 1.452a1 1 0 0 0 .737.535l1.634.256a1 1 0 0 1 .588 1.806l-1.172 1.168a1 1 0 0 0-.282.866l.259 1.613a1 1 0 0 1-1.541 1.134l-1.465-.75a1 1 0 0 0-.912 0l-1.465.75a1 1 0 0 1-1.539-1.133l.258-1.613a1 1 0 0 0-.282-.866l-1.156-1.153a1 1 0 0 1 .572-1.822l1.633-.256a1 1 0 0 0 .737-.535z"/><path d="M8 15H7a4 4 0 0 0-4 4v2"/><circle cx="10" cy="7" r="4"/></svg>
+            </div>
             <div class="search-bar-music">
                 <input type="text" id="music-input" placeholder="O que vamos ouvir?" onkeypress="if(event.key === 'Enter') performSearch()">
                 <button style="background:none;border:none;font-size:20px" onclick="performSearch()">🔍</button>
@@ -555,6 +598,8 @@ window.displayResults = (r) => {
         </footer>
     </div>
 </div>
+
+<div id="painelIndicar" class="screen"></div>
 
 </body>
 </html>
