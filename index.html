@@ -7,6 +7,7 @@
 <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <script src="https://unpkg.com/@phosphor-icons/web"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
 
 <style>
     /* CSS ORIGINAL PRESERVADO */
@@ -72,12 +73,19 @@
     .call-overlay { position: fixed; inset: 0; background: #000; z-index: 30000; display: none; flex-direction: column; align-items: center; justify-content: center; }
     .call-overlay.active { display: flex; }
     .call-grid { display: grid; gap: 12px; width: 95%; height: 75vh; grid-template-columns: 1fr 1fr; align-content: center; }
-    .video-card { background: #111; border-radius: 20px; overflow: hidden; border: 2px solid #222; position: relative; height: 100%; }
+    .video-card { background: #111; border-radius: 20px; overflow: hidden; border: 2px solid #222; position: relative; height: 100%; transition: 0.3s; }
     .video-card video { width: 100%; height: 100%; object-fit: cover; }
+    .video-card.fullscreen { position: fixed; inset: 0; z-index: 40000; width: 100vw; height: 100vh; border: none; border-radius: 0; }
+    
     .meu-video { transform: scaleX(-1); }
-    .video-label { position: absolute; bottom: 10px; left: 10px; background: rgba(0,0,0,0.6); padding: 4px 10px; border-radius: 8px; font-size: 12px; color: #00f2ff; }
-    .controles-call { display: flex; gap: 20px; margin-top: 30px; }
+    .video-label { position: absolute; bottom: 10px; left: 10px; background: rgba(0,0,0,0.6); padding: 4px 10px; border-radius: 8px; font-size: 12px; color: #00f2ff; display: flex; align-items: center; gap: 5px; z-index: 5; }
+    .video-label .icon-placeholder { width: 15px; height: 15px; background: #333; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: bold; }
+    
+    .zoom-btn { position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.5); border: none; color: #fff; width: 35px; height: 35px; border-radius: 8px; display: flex; align-items: center; justify-content: center; z-index: 10; cursor: pointer; }
+
+    .controles-call { display: flex; gap: 20px; margin-top: 30px; z-index: 40001; }
     .btn-hangup { background: #ff4444 !important; color: #fff !important; width: 60px !important; height: 60px !important; }
+    .btn-cam-toggle { background: #333 !important; color: #fff !important; width: 60px !important; height: 60px !important; }
 
     /* PERFIL */
     .avatar-grande { width: 80px; height: 80px; background: #222; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 40px; margin: 0 auto 15px; border: 2px solid var(--main); position: relative; font-weight: bold; color: var(--main); text-transform: uppercase; }
@@ -90,17 +98,33 @@
     /* MÚSICA */
     #pageMusic { background: #0b0e14; overflow-y: auto; height: 100%; }
     .music-header { padding: 20px; display: flex; flex-direction: column; background: rgba(11, 14, 20, 0.8); backdrop-filter: blur(12px); border-bottom: 1px solid #1e293b; position: sticky; top:0; z-index: 10;}
-    .music-nav { display: flex; gap: 20px; margin-bottom: 15px; }
+    .music-nav { display: flex; gap: 20px; margin-bottom: 15px; align-items: center; }
     .music-nav-btn { background: none; border: none; color: #666; font-size: 14px; font-weight: bold; cursor: pointer; }
     .music-nav-btn.active { color: #fff; border-bottom: 2px solid #fff; }
     .search-bar-music { display: flex; align-items: center; background: #1a1f29; border-radius: 12px; padding: 5px 15px; width: 100%; border: 1px solid transparent; }
     .search-bar-music input { background: transparent; border: none; padding: 10px; color: white; flex: 1; outline: none; }
-    #music-grid, #saved-music-grid, #top-music-grid { padding: 20px; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 20px; padding-bottom: 120px; }
-    .card { background: #1a1f29; padding: 12px; border-radius: 16px; cursor: pointer; position: relative; }
-    .card img { width: 100%; border-radius: 12px; margin-bottom: 10px; }
+    
+    #music-grid, #saved-music-grid, #top-music-grid, #posted-music-grid { 
+        padding: 10px; 
+        display: grid; 
+        grid-template-columns: repeat(3, 1fr); 
+        gap: 10px; 
+        padding-bottom: 120px; 
+    }
+
+    .card { background: #1a1f29; padding: 8px; border-radius: 12px; cursor: pointer; position: relative; }
+    .card img { width: 100%; border-radius: 8px; margin-bottom: 5px; }
     .music-footer { position: fixed; bottom: 0; left: 0; width: 100%; height: 90px; background: #0b0e14; border-top: 1px solid #1e293b; padding: 0 20px; display: flex; align-items: center; z-index: 9000; }
 
-    /* RANKING */
+    .post-card { background: #111; border-radius: 20px; padding: 15px; border: 1px solid #222; margin-bottom: 20px; position: relative; user-select: none; }
+    .post-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; cursor: pointer; }
+    .post-user { font-weight: bold; font-size: 14px; color: var(--main); }
+    .post-content-img { width: 100%; aspect-ratio: 1/1; object-fit: cover; border-radius: 15px; margin-bottom: 10px; }
+    .post-actions { display: flex; gap: 15px; align-items: center; margin-top: 10px; }
+    .action-btn { background: none; border: none; color: #fff; display: flex; align-items: center; gap: 5px; cursor: pointer; font-size: 14px; }
+    .action-btn.liked { color: #ff4444; }
+    .action-btn.liked svg { fill: #ff4444; }
+    
     #ranking-usuarios { padding: 20px; background: #111; border-radius: 20px; margin: 15px; border: 1px solid #222; animation: slideUp 0.5s ease; }
     .rank-item { display: flex; align-items: center; gap: 15px; padding: 12px; background: #1a1a1a; border-radius: 15px; margin-bottom: 10px; border-left: 4px solid #333; position: relative; overflow: hidden; cursor: pointer;}
     .rank-item.top-1 { border-left-color: #ffd700; background: linear-gradient(90deg, rgba(255,215,0,0.1), #1a1a1a); }
@@ -113,7 +137,6 @@
     .rank-subs { font-size: 11px; opacity: 0.6; }
     .crown { position: absolute; right: 15px; font-size: 20px; opacity: 0.8; }
 
-    /* NOTIFICAÇÃO */
     .notif-item { padding: 12px; border-bottom: 1px solid #222; font-size: 13px; display: flex; align-items: center; gap: 12px; }
     .notif-icon { width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: #222; font-size: 16px; color: var(--main); }
 
@@ -127,13 +150,35 @@
     .save-button-inner i { font-size: 20px; color: #fff; }
     .save-button-inner.saved i { color: #ffd700; }
 
+    .msg-call { background: rgba(0, 242, 255, 0.1) !important; border: 1px solid var(--main) !important; align-self: center !important; width: 90%; text-align: center; }
+    .btn-join-call { background: var(--main); color: #000; border: none; padding: 8px 15px; border-radius: 10px; margin-top: 10px; font-weight: bold; cursor: pointer; }
+
+    /* ESTILO NOVO COMENTÁRIO PARA MOBILE */
+    .coment-bubble { 
+        background: #1a1a1a; 
+        padding: 10px; 
+        border-radius: 15px; 
+        margin-bottom: 12px; 
+        display: flex; 
+        flex-direction: column; 
+        gap: 5px;
+        border: 1px solid #222;
+        animation: slideUp 0.3s ease;
+    }
+    .coment-top { display: flex; justify-content: space-between; align-items: center; }
+    .coment-user { color: var(--main); font-weight: bold; font-size: 13px; }
+    .coment-text { font-size: 14px; color: #eee; line-height: 1.4; }
+    .coment-actions { display: flex; justify-content: flex-end; align-items: center; gap: 4px; }
+    .btn-like-coment { background: none; border: none; color: #666; cursor: pointer; display: flex; align-items: center; gap: 3px; font-size: 12px; transition: 0.2s; }
+    .btn-like-coment.active { color: var(--main); }
+
     @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 </style>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import {
-  getFirestore, collection, addDoc, onSnapshot, query, orderBy, doc, setDoc, serverTimestamp, updateDoc, arrayUnion, arrayRemove, getDocs, deleteDoc, limit, getDoc
+  getFirestore, collection, addDoc, onSnapshot, query, orderBy, doc, setDoc, serverTimestamp, updateDoc, arrayUnion, arrayRemove, getDocs, deleteDoc, limit, getDoc, increment
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -157,6 +202,8 @@ let databaseUsuarios = {};
 let unsubMsgs = null;
 let audioAtual = null;
 let musicasSalvas = JSON.parse(localStorage.getItem("musicas_salvas")) || [];
+let camAtiva = true;
+let facingMode = "user"; // "user" ou "environment"
 
 const API_KEY_CORRETOR = "cTTUEHXN5jEg3bpM";
 const girias = { "vc":"você", "vcs":"vocês", "tb":"também", "pq":"porque", "n":"não", "ja":"já", "eh":"é" };
@@ -201,6 +248,7 @@ window.switchApp = (appId, btn) => {
 };
 
 window.addEventListener("DOMContentLoaded", () => {
+    lucide.createIcons();
     if (user && user.nome) startApp(); else byId("scrReg").classList.add("active");
     byId("formReg").onsubmit = async (e) => {
         e.preventDefault();
@@ -239,7 +287,190 @@ async function startApp() {
         window.todosUsuariosParaRanking = todosUsers;
     });
     escutarMensagens();
+    escutarPostsMusica();
+    escutarChamadaAtiva();
 }
+
+async function escutarChamadaAtiva() {
+    onSnapshot(doc(db, "chamada_status", "global"), async (snap) => {
+        const data = snap.data();
+        if(!data || !data.participantes || data.participantes.length === 0) {
+            if(data?.msgId) await deleteDoc(doc(db, "mensagens", data.msgId));
+            return;
+        }
+        if(data.msgId) {
+            await updateDoc(doc(db, "mensagens", data.msgId), {
+                texto: `📞 ${data.criador} está em ligação (${data.participantes.length} pessoas na chamada)`
+            });
+        }
+    });
+}
+
+async function escutarPostsMusica() {
+    const q = query(collection(db, "posts_musica"), orderBy("timestamp", "desc"));
+    onSnapshot(q, snap => {
+        const grid = byId("posted-music-grid");
+        if(!grid) return;
+        grid.innerHTML = "";
+        snap.forEach(d => {
+            const post = d.data();
+            const postId = d.id;
+            const isLiked = post.curtidas_lista?.includes(user.nome);
+            
+            const card = document.createElement("div");
+            card.className = "post-card";
+            
+            let timer;
+            card.ondblclick = () => curtirPost(postId, isLiked);
+            
+            const iniciarPressao = () => { 
+                if(post.autor === user.nome) {
+                    timer = setTimeout(() => { 
+                        if(confirm("Deseja apagar sua música publicada?")) deleteDoc(doc(db, "posts_musica", postId)); 
+                    }, 1000); 
+                }
+            };
+            const cancelarPressao = () => clearTimeout(timer);
+
+            card.onmousedown = iniciarPressao;
+            card.onmouseup = cancelarPressao;
+            card.ontouchstart = iniciarPressao;
+            card.ontouchend = cancelarPressao;
+
+            onSnapshot(collection(db, `posts_musica/${postId}/comentarios`), cSnap => {
+                const countSpan = document.getElementById(`count-coment-${postId}`);
+                if(countSpan) countSpan.textContent = cSnap.size;
+            });
+
+            card.innerHTML = `
+                <div class="post-header" onclick="decidirPerfil('${post.autor}')">
+                    <div class="rank-avatar" style="width:30px;height:30px;font-size:12px;">${post.autor.charAt(0)}</div>
+                    <span class="post-user">${post.autor}</span>
+                </div>
+                <img src="${post.img}" class="post-content-img" onclick="playM('${post.preview}', '${post.img}', '${post.titulo.replace(/'/g, "\\'")}')">
+                <h4 style="font-size:14px;">${post.titulo}</h4>
+                <p style="font-size:12px; opacity:0.6;">${post.artista}</p>
+                <div class="post-actions">
+                    <button class="action-btn ${isLiked ? 'liked' : ''}" onclick="curtirPost('${postId}', ${isLiked})">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="${isLiked ? '#ff4444' : 'none'}" stroke="${isLiked ? '#ff4444' : 'currentColor'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5c0 2.29-1.5 4-3 5.5l-5.492 5.313a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5"/></svg>
+                        <span>${post.curtidas || 0}</span>
+                    </button>
+                    <div style="display:flex; align-items:center; gap:5px; color:#fff; cursor:pointer;" onclick="abrirComentarios('${postId}')">
+                         <span id="count-coment-${postId}" style="font-size:14px;">0</span>
+                         <i data-lucide="message-circle" style="width:20px; height:20px;"></i>
+                    </div>
+                </div>
+            `;
+            grid.appendChild(card);
+        });
+        lucide.createIcons();
+    });
+}
+
+window.curtirPost = async (id, jaCurtiu) => {
+    const ref = doc(db, "posts_musica", id);
+    if(jaCurtiu) {
+        await updateDoc(ref, { curtidas: increment(-1), curtidas_lista: arrayRemove(user.nome) });
+    } else {
+        await updateDoc(ref, { curtidas: increment(1), curtidas_lista: arrayUnion(user.nome) });
+    }
+};
+
+window.abrirPainelPostar = () => {
+    if(musicasSalvas.length === 0) {
+        alert("Salve uma música primeiro para poder publicar!");
+        return;
+    }
+    let html = musicasSalvas.map(m => `
+        <div class="rank-item" style="border-left:none; background:#222;" onclick="publicarMusica('${m.id}')">
+            <img src="${m.img}" style="width:40px; border-radius:5px;">
+            <div class="rank-info">
+                <span class="rank-name">${m.title}</span>
+                <span class="rank-subs">${m.artist}</span>
+            </div>
+            <span style="color:var(--main); font-size:10px;">POSTAR</span>
+        </div>
+    `).join("");
+    
+    byId("listaParaPostar").innerHTML = html;
+    byId("painelPostar").classList.add("active");
+};
+
+window.publicarMusica = async (mid) => {
+    const m = musicasSalvas.find(x => x.id === mid);
+    await addDoc(collection(db, "posts_musica"), {
+        autor: user.nome,
+        titulo: m.title,
+        artista: m.artist,
+        img: m.img,
+        preview: m.preview,
+        curtidas: 0,
+        curtidas_lista: [],
+        timestamp: serverTimestamp()
+    });
+    byId("painelPostar").classList.remove("active");
+    switchMusicTab('posted');
+};
+
+window.abrirComentarios = async (postId) => {
+    window.postAtualComentarios = postId;
+    byId("painelComentarios").classList.add("active");
+    const box = byId("boxComentarios");
+    box.innerHTML = "Carregando...";
+    
+    onSnapshot(query(collection(db, `posts_musica/${postId}/comentarios`), orderBy("timestamp", "asc")), snap => {
+        box.innerHTML = "";
+        snap.forEach(d => {
+            const c = d.data();
+            const cid = d.id;
+            const jaCurtiu = (c.curtidas_lista || []).includes(user.nome);
+            
+            const divComent = document.createElement("div");
+            divComent.className = "coment-bubble";
+            divComent.innerHTML = `
+                <div class="coment-top">
+                    <span class="coment-user" onclick="fecharPainelComent(); decidirPerfil('${c.nome}')">${c.nome}</span>
+                </div>
+                <p class="coment-text">${escapeHtml(c.texto)}</p>
+                <div class="coment-actions">
+                    <button class="btn-like-coment ${jaCurtiu ? 'active' : ''}" onclick="curtirComentario('${postId}', '${cid}', ${jaCurtiu})">
+                        <span>${c.curtidas || 0}</span>
+                        <i data-lucide="thumbs-up" style="width:14px;height:14px;"></i>
+                    </button>
+                </div>
+            `;
+            box.appendChild(divComent);
+        });
+        lucide.createIcons();
+    });
+};
+
+window.curtirComentario = async (postId, cid, jaCurtiu) => {
+    const ref = doc(db, `posts_musica/${postId}/comentarios`, cid);
+    if(jaCurtiu) {
+        await updateDoc(ref, { curtidas: increment(-1), curtidas_lista: arrayRemove(user.nome) });
+    } else {
+        await updateDoc(ref, { curtidas: increment(1), curtidas_lista: arrayUnion(user.nome) });
+    }
+};
+
+window.fecharPainelComent = () => {
+    byId('painelComentarios').classList.remove('active');
+};
+
+window.enviarComentario = async () => {
+    const input = byId("inputComentario");
+    const txt = input.value.trim();
+    if(!txt) return;
+    await addDoc(collection(db, `posts_musica/${window.postAtualComentarios}/comentarios`), {
+        nome: user.nome,
+        texto: txt,
+        curtidas: 0,
+        curtidas_lista: [],
+        timestamp: serverTimestamp()
+    });
+    input.value = "";
+};
 
 window.atualizarRanking = () => {
     const container = byId("listaRanking");
@@ -328,7 +559,9 @@ function escutarMensagens() {
             const destino = (d.texto.match(/@(\S+)/) || [])[1];
             if (!destino || d.nome === user.nome || destino === user.nome) {
                 const div = document.createElement("div");
+                const isCallMsg = d.texto.includes("📞") && d.texto.includes("ligação");
                 div.className = d.nome === user.nome ? "msg me" : "msg";
+                if(isCallMsg) div.className += " msg-call";
                 const verif = checarVerificado(d.nome, (databaseUsuarios[d.nome]?.seguidores || []).length);
                 div.innerHTML = `
                     <div class="msg-top">
@@ -336,7 +569,7 @@ function escutarMensagens() {
                         <span style="font-size:10px;opacity:0.8;font-weight:bold;">${d.nome}${verif ? '<i class="fa-solid fa-circle-check badge-verificado"></i>' : ''}</span>
                     </div>
                     <p>${escapeHtml(d.texto)}</p>
-                    ${pandaSvg}
+                    ${isCallMsg ? `<button class="btn-join-call" onclick="entrarNaCall()">ENTRAR NA CHAMADA</button>` : pandaSvg}
                     ${d.liked ? '<span class="heart-pop">❤️</span>' : ''}
                 `;
                 div.ondblclick = () => updateDoc(doc(db, "mensagens", docSnap.id), { liked: !d.liked });
@@ -364,12 +597,34 @@ window.enviarMsg = async () => {
 };
 
 window.entrarNaCall = async () => {
+    const statusRef = doc(db, "chamada_status", "global");
+    const callSnap = await getDoc(statusRef);
+    const callData = callSnap.data() || { participantes: [] };
+    if(callData.participantes.length >= 5 && !callData.participantes.includes(user.nome)) {
+        alert("Chamada cheia! (Máximo 5 pessoas)");
+        return;
+    }
     byId("telaCall").classList.add("active");
-    streamLocal = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    streamLocal = await navigator.mediaDevices.getUserMedia({ video: { facingMode: facingMode }, audio: true });
     addVideoRemoto(meuPeer.id, streamLocal, true);
+    if(!callData.participantes.includes(user.nome)) {
+        let msgId = callData.msgId;
+        if(callData.participantes.length === 0) {
+            const msgRef = await addDoc(collection(db, "mensagens"), {
+                nome: "SISTEMA",
+                texto: `📞 ${user.nome} está em ligação (1 pessoas na chamada)`,
+                createdAt: serverTimestamp()
+            });
+            msgId = msgRef.id;
+        }
+        await setDoc(statusRef, {
+            criador: callData.criador || user.nome,
+            msgId: msgId,
+            participantes: arrayUnion(user.nome)
+        }, { merge: true });
+    }
     listaUsuarios.forEach(n => { 
         if(n !== user.nome) {
-            registrarNotificacao("ligou", user.nome, n);
             meuPeer.call(n.replace(/\s+/g, '_').toLowerCase(), streamLocal).on('stream', rs => addVideoRemoto(n, rs)); 
         }
     });
@@ -378,10 +633,57 @@ window.entrarNaCall = async () => {
 window.addVideoRemoto = (id, stream, isMe = false) => {
     const grid = byId("callGrid");
     let card = byId(`card_${id}`);
-    if (!card) { card = document.createElement("div"); card.className = "video-card"; card.id = `card_${id}`; grid.appendChild(card); }
+    if (!card) { 
+        card = document.createElement("div"); 
+        card.className = "video-card"; 
+        card.id = `card_${id}`; 
+        grid.appendChild(card); 
+    }
     const v = document.createElement("video"); v.autoplay = true; v.playsinline = true; v.srcObject = stream;
     if(isMe) { v.muted = true; v.className = "meu-video"; }
-    card.innerHTML = `<div class="video-label">${isMe ? 'Você' : id}</div>`; card.appendChild(v);
+    const idLimpo = id.split('_')[0].charAt(0).toUpperCase() + id.split('_')[0].slice(1);
+    card.innerHTML = `
+        <div class="video-label"><div class="icon-placeholder">${idLimpo.charAt(0)}</div> ${isMe ? 'Você' : idLimpo}</div>
+        <button class="zoom-btn" onclick="toggleZoom('${card.id}')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-scan-icon lucide-scan"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/></svg>
+        </button>
+    `; 
+    card.appendChild(v);
+};
+
+window.toggleZoom = (cardId) => {
+    const card = byId(cardId);
+    card.classList.toggle('fullscreen');
+};
+
+window.switchCamera = async () => {
+    facingMode = facingMode === "user" ? "environment" : "user";
+    if (streamLocal) {
+        streamLocal.getTracks().forEach(track => track.stop());
+        streamLocal = await navigator.mediaDevices.getUserMedia({ video: { facingMode: facingMode }, audio: true });
+        const videoElement = document.querySelector(".meu-video");
+        if (videoElement) videoElement.srcObject = streamLocal;
+        
+        Object.values(meuPeer.connections).forEach(connList => {
+            connList.forEach(conn => {
+                if (conn.peerConnection) {
+                    const videoSender = conn.peerConnection.getSenders().find(s => s.track.kind === 'video');
+                    if (videoSender) videoSender.replaceTrack(streamLocal.getVideoTracks()[0]);
+                }
+            });
+        });
+    }
+};
+
+window.toggleCam = () => {
+    camAtiva = !camAtiva;
+    streamLocal.getVideoTracks()[0].enabled = camAtiva;
+    const btn = byId("btnCam");
+    if(camAtiva) {
+        btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-camera-icon lucide-camera"><path d="M13.997 4a2 2 0 0 1 1.76 1.05l.486.9A2 2 0 0 0 18.003 7H20a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1.997a2 2 0 0 0 1.759-1.048l.489-.904A2 2 0 0 1 10.004 4z"/><circle cx="12" cy="13" r="3"/></svg>`;
+    } else {
+        btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-camera-off-icon lucide-camera-off"><path d="M14.564 14.558a3 3 0 1 1-4.122-4.121"/><path d="m2 2 20 20"/><path d="M20 20H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1.997a2 2 0 0 0 .819-.175"/><path d="M9.695 4.024A2 2 0 0 1 10.004 4h3.993a2 2 0 0 1 1.76 1.05l.486.9A2 2 0 0 0 18.003 7H20a2 2 0 0 1 2 2v7.344"/></svg>`;
+    }
 };
 
 window.verPerfilExterno = async (n) => {
@@ -466,7 +768,11 @@ window.selecionarAt = (n) => {
     byId("atList").style.display = "none"; i.focus();
 };
 
-window.sairChamada = () => { location.reload(); };
+window.sairChamada = async () => { 
+    const statusRef = doc(db, "chamada_status", "global");
+    await updateDoc(statusRef, { participantes: arrayRemove(user.nome) });
+    location.reload(); 
+};
 window.fechar = () => { byId("side").classList.remove("open"); byId("btnFlutuante").style.display = "flex"; };
 window.fecharMeuPerfil = () => byId("painelPerfil").classList.remove("active");
 window.fecharPerfilExterno = () => byId("painelExterno").classList.remove("active");
@@ -477,6 +783,7 @@ window.switchMusicTab = (tab) => {
     byId('music-grid').style.display = 'none';
     byId('saved-music-grid').style.display = 'none';
     byId('top-music-grid').style.display = 'none';
+    byId('posted-music-grid').style.display = 'none';
     byId('search-bar-container').style.display = 'none';
 
     if(tab === 'search') {
@@ -491,6 +798,9 @@ window.switchMusicTab = (tab) => {
         byId('btnMusicTop').classList.add('active');
         byId('top-music-grid').style.display = 'grid';
         getTopMusic();
+    } else if(tab === 'posted') {
+        byId('btnMusicPosted').classList.add('active');
+        byId('posted-music-grid').style.display = 'grid';
     }
 };
 
@@ -512,14 +822,13 @@ window.getTopMusic = () => {
 };
 
 window.displayTop = (r) => {
-    byId('top-music-grid').innerHTML = r.data.slice(0, 10).map((t, i) => `
-        <div style="position:relative">${cardMusicHtml(t)}<div style="position:absolute; top:0; left:0; background:var(--main); color:#000; padding:2px 8px; border-radius:10px 0 10px 0; font-weight:bold; font-size:12px;">#${i+1}</div></div>
+    byId('top-music-grid').innerHTML = r.data.slice(0, 15).map((t, i) => `
+        <div style="position:relative">${cardMusicHtml(t)}<div style="position:absolute; top:0; left:0; background:var(--main); color:#000; padding:2px 8px; border-radius:10px 0 10px 0; font-weight:bold; font-size:10px;">#${i+1}</div></div>
     `).join("");
 };
 
 function cardMusicHtml(t) {
     const isSaved = musicasSalvas.some(m => m.id === String(t.id));
-    // Escapa aspas para evitar quebra no HTML
     const cleanTitle = t.title.replace(/'/g, "\\'");
     const cleanImg = t.album.cover_medium;
     const cleanArtist = t.artist.name.replace(/'/g, "\\'");
@@ -530,8 +839,8 @@ function cardMusicHtml(t) {
         </div>
         <div>
             <img src="${cleanImg}">
-            <h4 style="font-size:13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${t.title}</h4>
-            <p style="font-size:11px; opacity:0.6;">${t.artist.name}</p>
+            <h4 style="font-size:11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${t.title}</h4>
+            <p style="font-size:9px; opacity:0.6;">${t.artist.name}</p>
         </div>
     </div>`;
 }
@@ -559,8 +868,8 @@ function renderSavedMusic() {
             </div>
             <div>
                 <img src="${t.img}">
-                <h4 style="font-size:13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${t.title}</h4>
-                <p style="font-size:11px; opacity:0.6;">${t.artist}</p>
+                <h4 style="font-size:11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${t.title}</h4>
+                <p style="font-size:9px; opacity:0.6;">${t.artist}</p>
             </div>
         </div>`;
     }).join("");
@@ -626,7 +935,15 @@ window.playM = (u, img, t) => {
 
         <div id="telaCall" class="call-overlay">
             <div class="call-grid" id="callGrid"></div>
-            <div class="controles-call"><button class="icon-btn btn-hangup" onclick="sairChamada()">📞</button></div>
+            <div class="controles-call">
+                <button class="icon-btn btn-cam-toggle" id="btnCam" onclick="toggleCam()">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-camera-icon lucide-camera"><path d="M13.997 4a2 2 0 0 1 1.76 1.05l.486.9A2 2 0 0 0 18.003 7H20a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1.997a2 2 0 0 0 1.759-1.048l.489-.904A2 2 0 0 1 10.004 4z"/><circle cx="12" cy="13" r="3"/></svg>
+                </button>
+                <button class="icon-btn" onclick="switchCamera()">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-switch-camera-icon lucide-switch-camera"><path d="M11 19H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5"/><path d="M13 5h7a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-5"/><circle cx="12" cy="12" r="3"/><path d="m18 22-3-3 3-3"/><path d="m6 2 3 3-3 3"/></svg>
+                </button>
+                <button class="icon-btn btn-hangup" onclick="sairChamada()">📞</button>
+            </div>
         </div>
     </div>
 
@@ -640,9 +957,13 @@ window.playM = (u, img, t) => {
     <div id="pageMusic" class="app-page">
         <header class="music-header">
             <div class="music-nav">
+                <button onclick="abrirPainelPostar()" style="background:none; border:none; color:var(--main); cursor:pointer;">
+                    <i data-lucide="chart-no-axes-column-decreasing"></i>
+                </button>
                 <button id="btnMusicSearch" class="music-nav-btn active" onclick="switchMusicTab('search')">EXPLORAR</button>
-                <button id="btnMusicTop" class="music-nav-btn" onclick="switchMusicTab('top')">TOP 10 📈</button>
+                <button id="btnMusicTop" class="music-nav-btn" onclick="switchMusicTab('top')">TOP 📉</button>
                 <button id="btnMusicSaved" class="music-nav-btn" onclick="switchMusicTab('saved')">SALVAS ⭐</button>
+                <button id="btnMusicPosted" class="music-nav-btn" onclick="switchMusicTab('posted')">PUBLICADAS</button>
             </div>
             <div class="search-bar-music" id="search-bar-container">
                 <input type="text" id="music-input" placeholder="O que vamos ouvir?" onkeypress="if(event.key === 'Enter') performSearch()">
@@ -652,10 +973,37 @@ window.playM = (u, img, t) => {
         <main id="music-grid"></main>
         <main id="top-music-grid" style="display:none;"></main>
         <main id="saved-music-grid" style="display:none;"></main>
+        <main id="posted-music-grid" style="display:none;"></main>
+        
+        <div id="painelPostar" class="screen">
+            <div style="background:#111; padding:20px; border-radius:20px; width:90%; max-height:80vh; overflow-y:auto;">
+                <h3 style="margin-bottom:15px; color:var(--main);">Escolha para publicar:</h3>
+                <div id="listaParaPostar"></div>
+                <button class="save-btn" onclick="byId('painelPostar').classList.remove('active')">CANCELAR</button>
+            </div>
+        </div>
+
+        <!-- PAINEL COMENTÁRIOS COM DESIGN MOBILE -->
+        <div id="painelComentarios" class="screen">
+            <div style="background:#111; padding:20px; border-top-left-radius:30px; border-top-right-radius:30px; width:100%; height:85vh; position:absolute; bottom:0; display:flex; flex-direction:column; border: 1px solid #222;">
+                <div style="width:40px; height:5px; background:#333; border-radius:5px; margin: 0 auto 15px;"></div>
+                <h3 style="margin-bottom:15px; text-align:center;">Comentários</h3>
+                <div id="boxComentarios" style="flex:1; overflow-y:auto; margin-bottom:15px; padding-right:5px;"></div>
+                <div style="display:flex; gap:10px; background:#222; padding:8px; border-radius:20px;">
+                    <input id="inputComentario" placeholder="Escreva algo..." style="margin-top:0; background:transparent; border:none; padding:10px;">
+                    <button class="send-btn" onclick="enviarComentario()" style="width:40px; height:40px; font-size:14px;">➤</button>
+                </div>
+                <button class="save-btn" onclick="fecharPainelComent()" style="padding:10px; background:none; color:#666;">FECHAR</button>
+            </div>
+        </div>
+
         <footer class="music-footer">
-            <div style="display:flex; align-items:center; gap:15px;">
+            <div style="display:flex; align-items:center; gap:15px;" onclick="decidirPerfil(user.nome)">
                 <img id="current-img" src="" style="width:55px; height:55px; border-radius:8px; display:none;">
-                <h4 id="current-title" style="font-size:14px;">Nenhuma tocando</h4>
+                <div style="display:flex; flex-direction:column;">
+                    <h4 id="current-title" style="font-size:14px;">Nenhuma tocando</h4>
+                    <span style="font-size:10px; opacity:0.6;" id="meuNomeMusic">${user.nome} • Ver Perfil</span>
+                </div>
             </div>
         </footer>
     </div>
@@ -663,3 +1011,15 @@ window.playM = (u, img, t) => {
 
 </body>
 </html>
+
+
+
+
+Quando eu viro a camera ta meio
+
+Torta viro pra um lado vai pfa outro corrigi isso
+
+Manda a script 
+
+Aviso avsio
+N mude nada n altere nada aviso n mude nada msm n mude aviso n mexa n muda em nenhum letra
