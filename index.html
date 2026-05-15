@@ -342,12 +342,13 @@ async function escutarPostsMusica() {
                 if(countSpan) countSpan.textContent = cSnap.size;
             });
 
+            const cleanT = post.titulo.replace(/'/g, "\\'");
             card.innerHTML = `
                 <div class="post-header" onclick="decidirPerfil('${post.autor}')">
                     <div class="rank-avatar" style="width:30px;height:30px;font-size:12px;">${post.autor.charAt(0)}</div>
                     <span class="post-user">${post.autor}</span>
                 </div>
-                <img src="${post.img}" class="post-content-img" onclick="playM('${post.preview}', '${post.img}', '${post.titulo.replace(/'/g, "\\'")}')">
+                <img src="${post.img}" class="post-content-img" onclick="playM('${post.preview}', '${post.img}', '${cleanT}')">
                 <h4 style="font-size:14px;">${post.titulo}</h4>
                 <p style="font-size:12px; opacity:0.6;">${post.artista}</p>
                 <div class="post-actions">
@@ -876,7 +877,7 @@ function renderSavedMusic() {
 }
 
 window.playM = (u, img, t) => {
-    if(!u) return;
+    if(!u || u === "undefined") return;
     if(audioAtual) audioAtual.pause();
     byId('current-img').src = img; 
     byId('current-img').style.display='block'; 
@@ -983,7 +984,6 @@ window.playM = (u, img, t) => {
             </div>
         </div>
 
-        <!-- PAINEL COMENTÁRIOS COM DESIGN MOBILE -->
         <div id="painelComentarios" class="screen">
             <div style="background:#111; padding:20px; border-top-left-radius:30px; border-top-right-radius:30px; width:100%; height:85vh; position:absolute; bottom:0; display:flex; flex-direction:column; border: 1px solid #222;">
                 <div style="width:40px; height:5px; background:#333; border-radius:5px; margin: 0 auto 15px;"></div>
@@ -1011,15 +1011,3 @@ window.playM = (u, img, t) => {
 
 </body>
 </html>
-
-
-
-
-Quando eu viro a camera ta meio
-
-Torta viro pra um lado vai pfa outro corrigi isso
-
-Manda a script 
-
-Aviso avsio
-N mude nada n altere nada aviso n mude nada msm n mude aviso n mexa n muda em nenhum letra
