@@ -342,13 +342,16 @@ async function escutarPostsMusica() {
                 if(countSpan) countSpan.textContent = cSnap.size;
             });
 
-            const cleanT = post.titulo.replace(/'/g, "\\'");
+            const safeTitle = post.titulo.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            const safeImg = post.img.replace(/'/g, "\\'");
+            const safePreview = post.preview.replace(/'/g, "\\'");
+
             card.innerHTML = `
                 <div class="post-header" onclick="decidirPerfil('${post.autor}')">
                     <div class="rank-avatar" style="width:30px;height:30px;font-size:12px;">${post.autor.charAt(0)}</div>
                     <span class="post-user">${post.autor}</span>
                 </div>
-                <img src="${post.img}" class="post-content-img" onclick="playM('${post.preview}', '${post.img}', '${cleanT}')">
+                <img src="${post.img}" class="post-content-img" onclick="playM('${safePreview}', '${safeImg}', '${safeTitle}')">
                 <h4 style="font-size:14px;">${post.titulo}</h4>
                 <p style="font-size:12px; opacity:0.6;">${post.artista}</p>
                 <div class="post-actions">
@@ -626,7 +629,10 @@ window.entrarNaCall = async () => {
     }
     listaUsuarios.forEach(n => { 
         if(n !== user.nome) {
-            meuPeer.call(n.replace(/\s+/g, '_').toLowerCase(), streamLocal).on('stream', rs => addVideoRemoto(n, rs)); 
+            const call = meuPeer.call(n.replace(/\s+/g, '_').toLowerCase(), streamLocal);
+            if(call) {
+                call.on('stream', rs => addVideoRemoto(n, rs));
+            }
         }
     });
 };
@@ -681,7 +687,7 @@ window.toggleCam = () => {
     streamLocal.getVideoTracks()[0].enabled = camAtiva;
     const btn = byId("btnCam");
     if(camAtiva) {
-        btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-camera-icon lucide-camera"><path d="M13.997 4a2 2 0 0 1 1.76 1.05l.486.9A2 2 0 0 0 18.003 7H20a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1.997a2 2 0 0 0 1.759-1.048l.489-.904A2 2 0 0 1 10.004 4z"/><circle cx="12" cy="13" r="3"/></svg>`;
+        btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-camera-icon lucide-camera"><path d="M13.997 4a2 2 0 0 1 1.76 1.05l.486.9A2 2 0 0 0 18.003 7H20a2 2 0 0 1 2 2v9a2 2 0 0 1-2-2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1.997a2 2 0 0 0 1.759-1.048l.489-.904A2 2 0 0 1 10.004 4z"/><circle cx="12" cy="13" r="3"/></svg>`;
     } else {
         btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-camera-off-icon lucide-camera-off"><path d="M14.564 14.558a3 3 0 1 1-4.122-4.121"/><path d="m2 2 20 20"/><path d="M20 20H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1.997a2 2 0 0 0 .819-.175"/><path d="M9.695 4.024A2 2 0 0 1 10.004 4h3.993a2 2 0 0 1 1.76 1.05l.486.9A2 2 0 0 0 18.003 7H20a2 2 0 0 1 2 2v7.344"/></svg>`;
     }
@@ -830,8 +836,8 @@ window.displayTop = (r) => {
 
 function cardMusicHtml(t) {
     const isSaved = musicasSalvas.some(m => m.id === String(t.id));
-    const cleanTitle = t.title.replace(/'/g, "\\'");
-    const cleanImg = t.album.cover_medium;
+    const cleanTitle = t.title.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    const cleanImg = t.album.cover_medium.replace(/'/g, "\\'");
     const cleanArtist = t.artist.name.replace(/'/g, "\\'");
     return `
     <div class="card" onclick="playM('${t.preview}', '${cleanImg}', '${cleanTitle}')">
@@ -861,7 +867,7 @@ function renderSavedMusic() {
         return;
     }
     byId('saved-music-grid').innerHTML = musicasSalvas.map(t => {
-        const cleanTitle = t.title.replace(/'/g, "\\'");
+        const cleanTitle = t.title.replace(/'/g, "\\'").replace(/"/g, '&quot;');
         return `
         <div class="card" onclick="playM('${t.preview}', '${t.img}', '${cleanTitle}')">
             <div id="btn_save_${t.id}" class="save-button-inner saved" onclick="event.stopPropagation(); toggleSaveMusic('${t.id}', '', '', '', '')">
@@ -877,7 +883,7 @@ function renderSavedMusic() {
 }
 
 window.playM = (u, img, t) => {
-    if(!u || u === "undefined") return;
+    if(!u) return;
     if(audioAtual) audioAtual.pause();
     byId('current-img').src = img; 
     byId('current-img').style.display='block'; 
