@@ -150,6 +150,15 @@
     .save-button-inner i { font-size: 20px; color: #fff; }
     .save-button-inner.saved i { color: #ffd700; }
 
+    /* ESTILO NOVO PARA BOTÃO DE PERFIL NA MÚSICA */
+    .profile-music-button-inner {
+        position: absolute; top: 15px; left: 15px;
+        width: 35px; height: 35px; border-radius: 50%;
+        background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center;
+        transition: all 0.4s; border: 1px solid #333; z-index: 5;
+    }
+    .profile-music-button-inner i { color: #fff; font-size: 16px; }
+
     .msg-call { background: rgba(0, 242, 255, 0.1) !important; border: 1px solid var(--main) !important; align-self: center !important; width: 90%; text-align: center; }
     .btn-join-call { background: var(--main); color: #000; border: none; padding: 8px 15px; border-radius: 10px; margin-top: 10px; font-weight: bold; cursor: pointer; }
 
@@ -269,11 +278,12 @@ async function startApp() {
     byId("scrReg").classList.remove("active");
     meuPeer = new Peer((user.nome || "anon").replace(/\s+/g, '_').toLowerCase());
     meuPeer.on('call', (call) => { 
+        if(!streamLocal) return;
         registrarNotificacao("ligou", call.peer, user.nome);
         call.answer(streamLocal); 
         call.on('stream', (rs) => addVideoRemoto(call.peer, rs)); 
     });
-    await setDoc(doc(db, "usuarios_online", user.nome), { nome: user.nome, lastSeen: serverTimestamp(), bio: user.bio, seguidores: user.seguidores, seguindo: user.seguindo }, { merge: true });
+    await setDoc(doc(db, "usuarios_online", user.nome), { nome: user.nome, lastSeen: serverTimestamp(), bio: user.bio, seguidores: user.seguidores, seguindo: user.seguindo, perfilMusica: user.perfilMusica || null }, { merge: true });
     onSnapshot(collection(db, "usuarios_online"), snap => {
         listaUsuarios = [];
         let todosUsers = [];
@@ -282,7 +292,7 @@ async function startApp() {
             databaseUsuarios[data.nome] = data;
             listaUsuarios.push(data.nome);
             todosUsers.push(data);
-            if(data.nome === user.nome) { user.seguidores = data.seguidores || []; user.seguindo = data.seguindo || []; }
+            if(data.nome === user.nome) { user.seguidores = data.seguidores || []; user.seguindo = data.seguindo || []; user.perfilMusica = data.perfilMusica || null; }
         });
         window.todosUsuariosParaRanking = todosUsers;
     });
@@ -627,11 +637,12 @@ window.entrarNaCall = async () => {
             participantes: arrayUnion(user.nome)
         }, { merge: true });
     }
-    listaUsuarios.forEach(n => { 
+    callData.participantes.forEach(n => { 
         if(n !== user.nome) {
-            const call = meuPeer.call(n.replace(/\s+/g, '_').toLowerCase(), streamLocal);
+            const peerIdAlvo = n.replace(/\s+/g, '_').toLowerCase();
+            const call = meuPeer.call(peerIdAlvo, streamLocal);
             if(call) {
-                call.on('stream', rs => addVideoRemoto(n, rs));
+                call.on('stream', rs => addVideoRemoto(peerIdAlvo, rs));
             }
         }
     });
@@ -699,19 +710,45 @@ window.verPerfilExterno = async (n) => {
     if(!d) return;
     const ja = (d.seguidores || []).includes(user.nome);
     const verif = checarVerificado(n, (d.seguidores || []).length);
+    
+    const qMusicas = query(collection(db, "posts_musica"), orderBy("timestamp", "desc"));
+    const snapMusicas = await getDocs(qMusicas);
+    let totalLikesExterno = 0;
+    snapMusicas.forEach(docSnap => {
+        const m = docSnap.data();
+        if(m.autor === n) {
+            totalLikesExterno += (m.curtidas || 0);
+        }
+    });
+
+    let musicHtml = "";
+    if(d.perfilMusica && d.perfilMusica.title) {
+        musicHtml = `<div style="text-align:center; margin-bottom:15px; font-size:13px; color:#00f2ff; font-weight:bold;">🎵 music ${escapeHtml(d.perfilMusica.title)}</div>`;
+        if(audioAtual) audioAtual.pause();
+        audioAtual = new Audio(d.perfilMusica.preview);
+        audioAtual.play().catch(e => console.log("Autoplay bloqueado"));
+    }
+
     byId("perfilExternoContent").innerHTML = `
+        ${musicHtml}
         <div class="avatar-grande">${n.charAt(0)}${verif ? '<i class="fa-solid fa-circle-check mini-verif"></i>' : ''}</div>
         <h2 style="text-align:center">${n}${verif ? '<i class="fa-solid fa-circle-check badge-verificado"></i>' : ''}</h2>
         <p style="text-align:center; opacity:0.7; margin:10px 0;">${d.bio || 'Sem bio.'}</p>
         <div class="stats-container">
-            <div class="stat-item"><span class="stat-val">${formatarNumero(d.seguidores.length)}</span><span class="stat-label">Seguidores</span></div>
-            <div class="stat-item"><span class="stat-val">${formatarNumero(d.seguindo.length)}</span><span class="stat-label">Seguindo</span></div>
+            <div class="stat-item" style="cursor:pointer;" onclick="abrirListaConexoes('${n}', 'seguidores')"><span class="stat-val">${formatarNumero(d.seguidores.length)}</span><span class="stat-label">Seguidores</span></div>
+            <div class="stat-item" style="cursor:pointer;" onclick="abrirListaConexoes('${n}', 'seguindo')"><span class="stat-val">${formatarNumero(d.seguindo.length)}</span><span class="stat-label">Seguindo</span></div>
+            <div class="stat-item"><span class="stat-val">${formatarNumero(totalLikesExterno)}</span><span class="stat-label">Likes ❤️</span></div>
         </div>
         <button class="btn-seguir ${ja ? 'seguindo' : ''}" onclick="toggleSeguir('${n}')">
             ${ja ? iconDeixarSeguir + ' Parar de Seguir' : iconSeguir + ' Seguir'}
         </button>
+        <div id="musicasPerfilExterno" style="margin-top:20px; border-top:1px solid #222; padding-top:15px;">
+            <h4 style="font-size:12px; color:var(--main); margin-bottom:10px; text-transform:uppercase; text-align:center;">Músicas Publicadas</h4>
+            <div id="listaMusicasExternas" style="display:grid; grid-template-columns:repeat(3, 1fr); gap:8px;"></div>
+        </div>
     `;
     byId("painelExterno").classList.add("active");
+    carregarMusicasPerfil(n, "listaMusicasExternas");
 };
 
 window.toggleSeguir = async (n) => {
@@ -735,13 +772,35 @@ window.abrirMeuPerfil = () => {
     byId("editBio").value = user.bio || ""; 
     atualizarVisualPerfil(); 
     byId("painelPerfil").classList.add("active"); 
+    carregarMusicasPerfil(user.nome, "listaMinhasMusicas");
+
+    if(user.perfilMusica && user.perfilMusica.title) {
+        byId("meuPerfilMusicaNome").textContent = user.perfilMusica.title;
+        byId("meuPerfilMusicaBox").style.display = "block";
+        if(audioAtual) audioAtual.pause();
+        audioAtual = new Audio(user.perfilMusica.preview);
+        audioAtual.play().catch(e => console.log("Autoplay bloqueado"));
+    } else {
+        byId("meuPerfilMusicaBox").style.display = "none";
+    }
 };
 
-function atualizarVisualPerfil() { 
+async function atualizarVisualPerfil() { 
     const verif = checarVerificado(user.nome, user.seguidores.length);
     byId("meuAvatarPerfil").innerHTML = `${user.nome.charAt(0)}${verif ? '<i class="fa-solid fa-circle-check mini-verif"></i>' : ''}`;
     byId("meusSeguidores").textContent = formatarNumero(user.seguidores.length); 
     byId("meusSeguindo").textContent = formatarNumero(user.seguindo.length);
+
+    const qMusicas = query(collection(db, "posts_musica"), orderBy("timestamp", "desc"));
+    const snapMusicas = await getDocs(qMusicas);
+    let totalLikesMeuPerfil = 0;
+    snapMusicas.forEach(docSnap => {
+        const m = docSnap.data();
+        if(m.autor === user.nome) {
+            totalLikesMeuPerfil += (m.curtidas || 0);
+        }
+    });
+    byId("meusLikes").textContent = formatarNumero(totalLikesMeuPerfil);
 }
 
 window.salvarPerfil = async () => {
@@ -755,7 +814,7 @@ window.salvarPerfil = async () => {
     localStorage.setItem("user_completo", JSON.stringify(user));
     await setDoc(doc(db, "usuarios_online", user.nome), { 
         nome: user.nome, bio: user.bio, lastSeen: serverTimestamp(), 
-        seguidores: user.seguidores, seguindo: user.seguindo 
+        seguidores: user.seguidores, seguindo: user.seguindo, perfilMusica: user.perfilMusica || null
     }, { merge: true });
     location.reload();
 };
@@ -769,7 +828,7 @@ window.checarAt = (i) => {
     } else byId("atList").style.display = "none";
 };
 
-window.selecionarAt = (n) => {
+window.selectedAt = window.selecionarAt = (n) => {
     const i = byId("msgInput"); const p = i.value.split(/\s+/); p.pop();
     i.value = (p.length ? p.join(" ") + " " : "") + "@" + n + " ";
     byId("atList").style.display = "none"; i.focus();
@@ -781,8 +840,8 @@ window.sairChamada = async () => {
     location.reload(); 
 };
 window.fechar = () => { byId("side").classList.remove("open"); byId("btnFlutuante").style.display = "flex"; };
-window.fecharMeuPerfil = () => byId("painelPerfil").classList.remove("active");
-window.fecharPerfilExterno = () => byId("painelExterno").classList.remove("active");
+window.fecharMeuPerfil = () => { byId("painelPerfil").classList.remove("active"); if(audioAtual) audioAtual.pause(); };
+window.fecharPerfilExterno = () => { byId("painelExterno").classList.remove("active"); if(audioAtual) audioAtual.pause(); };
 
 /* MÚSICA */
 window.switchMusicTab = (tab) => {
@@ -844,6 +903,9 @@ function cardMusicHtml(t) {
         <div id="btn_save_${t.id}" class="save-button-inner ${isSaved ? 'saved' : ''}" onclick="event.stopPropagation(); toggleSaveMusic('${t.id}', '${cleanTitle}', '${cleanImg}', '${t.preview}', '${cleanArtist}')">
             <i class="ph ph-bookmark-simple"></i>
         </div>
+        <div class="profile-music-button-inner" onclick="event.stopPropagation(); definirMusicaPerfil('${t.id}', '${cleanTitle}', '${t.preview}')">
+            <i class="fa-solid fa-music"></i>
+        </div>
         <div>
             <img src="${cleanImg}">
             <h4 style="font-size:11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${t.title}</h4>
@@ -873,6 +935,9 @@ function renderSavedMusic() {
             <div id="btn_save_${t.id}" class="save-button-inner saved" onclick="event.stopPropagation(); toggleSaveMusic('${t.id}', '', '', '', '')">
                 <i class="ph ph-bookmark-simple"></i>
             </div>
+            <div class="profile-music-button-inner" onclick="event.stopPropagation(); definirMusicaPerfil('${t.id}', '${cleanTitle}', '${t.preview}')">
+                <i class="fa-solid fa-music"></i>
+            </div>
             <div>
                 <img src="${t.img}">
                 <h4 style="font-size:11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${t.title}</h4>
@@ -890,6 +955,84 @@ window.playM = (u, img, t) => {
     byId('current-title').textContent = t;
     audioAtual = new Audio(u); 
     audioAtual.play();
+};
+
+/* NOVAS IMPLEMENTAÇÕES DE ASSISTÊNCIA DE CONEXÕES E MÚSICAS NO PERFIL */
+async function carregarMusicasPerfil(nomeUsuario, containerId) {
+    const box = byId(containerId);
+    if(!box) return;
+    box.innerHTML = '<span style="grid-column:1/-1; font-size:11px; opacity:0.5; text-align:center;">Carregando...</span>';
+    const q = query(collection(db, "posts_musica"), orderBy("timestamp", "desc"));
+    const snap = await getDocs(q);
+    let html = "";
+    snap.forEach(docSnap => {
+        const m = docSnap.data();
+        if(m.autor === nomeUsuario) {
+            const cleanTitle = m.titulo.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            const cleanImg = m.img.replace(/'/g, "\\'");
+            const cleanPreview = m.preview.replace(/'/g, "\\'");
+            html += `
+                <div class="card" style="padding:4px; background:#1e2530;" onclick="event.stopPropagation(); playM('${cleanPreview}', '${cleanImg}', '${cleanTitle}')">
+                    <img src="${m.img}" style="border-radius:6px; margin-bottom:2px;">
+                    <h5 style="font-size:9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin:0;">${m.titulo}</h5>
+                </div>
+            `;
+        }
+    });
+    box.innerHTML = html || '<span style="grid-column:1/-1; font-size:11px; opacity:0.4; text-align:center;">Nenhuma música postada.</span>';
+}
+
+window.definirMusicaPerfil = async (id, title, preview) => {
+    user.perfilMusica = { id, title, preview };
+    localStorage.setItem("user_completo", JSON.stringify(user));
+    await setDoc(doc(db, "usuarios_online", user.nome), { perfilMusica: user.perfilMusica }, { merge: true });
+    alert("Música colocada no seu perfil!");
+};
+
+window.removerMusicaPerfil = async () => {
+    user.perfilMusica = null;
+    localStorage.setItem("user_completo", JSON.stringify(user));
+    await setDoc(doc(db, "usuarios_online", user.nome), { perfilMusica: null }, { merge: true });
+    byId("meuPerfilMusicaBox").style.display = "none";
+    if(audioAtual) audioAtual.pause();
+    alert("Música removida do seu perfil!");
+};
+
+window.abrirListaConexoes = async (nomeUsuario, tipo) => {
+    const d = (await getDoc(doc(db, "usuarios_online", nomeUsuario))).data();
+    if(!d) return;
+    const lista = tipo === 'seguidores' ? (d.seguidores || []) : (d.seguindo || []);
+    const painel = byId("painelConexoes");
+    byId("tituloConexoes").textContent = tipo === 'seguidores' ? "Seguidores" : "Seguindo";
+    const box = byId("listaConexoesConteudo");
+    box.innerHTML = "";
+    if(lista.length === 0) {
+        box.innerHTML = '<div style="text-align:center; padding:20px; opacity:0.5; font-size:13px;">Lista vazia.</div>';
+    } else {
+        lista.forEach(nomeItem => {
+            const div = document.createElement("div");
+            div.className = "rank-item";
+            div.style.borderLeft = "none";
+            div.style.background = "#1a1a1a";
+            div.style.margin = "0 0 8px 0";
+            div.innerHTML = `
+                <div class="rank-avatar" style="width:35px; height:35px; font-size:14px;">${nomeItem.charAt(0)}</div>
+                <div class="rank-info"><span class="rank-name" style="font-size:14px;">${nomeItem}</span></div>
+            `;
+            div.onclick = () => {
+                painel.classList.remove("active");
+                byId("painelPerfil").classList.remove("active");
+                byId("painelExterno").classList.remove("active");
+                decidirPerfil(nomeItem);
+            };
+            box.appendChild(div);
+        });
+    }
+    painel.classList.add("active");
+};
+
+window.fecharPainelConexoes = () => {
+    byId("painelConexoes").classList.remove("active");
 };
 </script>
 </head>
@@ -920,23 +1063,40 @@ window.playM = (u, img, t) => {
         <div id="side" class="panel"><div id="sideContent" style="height:100%; display:flex; flex-direction:column;"></div></div>
         
         <div id="painelPerfil" class="screen">
-            <div style="background:#111; padding:25px; border-radius:25px; width:85%; border:1px solid #00f2ff; position: relative;">
-                <button style="position: absolute; top: 15px; right: 20px; background:none; border:none; color:#fff; font-size: 22px;" onclick="fecharMeuPerfil()">✕</button>
+            <div style="background:#111; padding:25px; border-radius:25px; width:85%; border:1px solid #00f2ff; position: relative; max-height:85vh; overflow-y:auto;">
+                <button style="position: absolute; top: 15px; right: 20px; background:none; border:none; color:#fff; font-size: 22px; z-index:10;" onclick="fecharMeuPerfil()">✕</button>
+                <div id="meuPerfilMusicaBox" style="text-align:center; margin-bottom:15px; font-size:13px; color:#00f2ff; font-weight:bold; display:none;">
+                    🎵 music <span id="meuPerfilMusicaNome"></span>
+                    <button onclick="removerMusicaPerfil()" style="background:none; border:none; color:#ff4444; cursor:pointer; margin-left:8px; font-size:14px;"><i class="fa-solid fa-trash"></i></button>
+                </div>
                 <div class="avatar-grande" id="meuAvatarPerfil">👤</div>
                 <div class="stats-container">
-                    <div class="stat-item"><span id="meusSeguidores" class="stat-val">0</span><span class="stat-label">Seguidores</span></div>
-                    <div class="stat-item"><span id="meusSeguindo" class="stat-val">0</span><span class="stat-label">Seguindo</span></div>
+                    <div class="stat-item" style="cursor:pointer;" onclick="abrirListaConexoes(user.nome, 'seguidores')"><span id="meusSeguidores" class="stat-val">0</span><span class="stat-label">Seguidores</span></div>
+                    <div class="stat-item" style="cursor:pointer;" onclick="abrirListaConexoes(user.nome, 'seguindo')"><span id="meusSeguindo" class="stat-val">0</span><span class="stat-label">Seguindo</span></div>
+                    <div class="stat-item"><span id="meusLikes" class="stat-val">0</span><span class="stat-label">Likes ❤️</span></div>
                 </div>
                 <input id="editNome" placeholder="Nome">
                 <textarea id="editBio" placeholder="Bio"></textarea>
                 <button class="save-btn" onclick="salvarPerfil()">SALVAR</button>
+                <div id="musicasMeuPerfil" style="margin-top:20px; border-top:1px solid #222; padding-top:15px;">
+                    <h4 style="font-size:12px; color:var(--main); margin-bottom:10px; text-transform:uppercase; text-align:center;">Minhas Músicas</h4>
+                    <div id="listaMinhasMusicas" style="display:grid; grid-template-columns:repeat(3, 1fr); gap:8px;"></div>
+                </div>
             </div>
         </div>
 
         <div id="painelExterno" class="screen">
-            <div style="background:#111; padding:25px; border-radius:25px; width:85%; position: relative; border: 1px solid #222;">
-                <button style="position: absolute; top: 15px; right: 20px; background:none; border:none; color:#fff; font-size: 22px;" onclick="fecharPerfilExterno()">✕</button>
+            <div style="background:#111; padding:25px; border-radius:25px; width:85%; position: relative; border: 1px solid #222; max-height:85vh; overflow-y:auto;">
+                <button style="position: absolute; top: 15px; right: 20px; background:none; border:none; color:#fff; font-size: 22px; z-index:10;" onclick="fecharPerfilExterno()">✕</button>
                 <div id="perfilExternoContent"></div>
+            </div>
+        </div>
+
+        <div id="painelConexoes" class="screen" style="z-index: 25000;">
+            <div style="background:#111; padding:20px; border-radius:25px; width:80%; max-height:60vh; display:flex; flex-direction:column; border:1px solid #333;">
+                <h3 id="tituloConexoes" style="color:var(--main); text-align:center; margin-bottom:15px;">-</h3>
+                <div id="listaConexoesConteudo" style="flex:1; overflow-y:auto; padding-right:5px;"></div>
+                <button class="save-btn" onclick="fecharPainelConexoes()" style="margin-top:15px; padding:10px; background:#222; color:#fff;">VOLTAR</button>
             </div>
         </div>
 
@@ -944,7 +1104,7 @@ window.playM = (u, img, t) => {
             <div class="call-grid" id="callGrid"></div>
             <div class="controles-call">
                 <button class="icon-btn btn-cam-toggle" id="btnCam" onclick="toggleCam()">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-camera-icon lucide-camera"><path d="M13.997 4a2 2 0 0 1 1.76 1.05l.486.9A2 2 0 0 0 18.003 7H20a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1.997a2 2 0 0 0 1.759-1.048l.489-.904A2 2 0 0 1 10.004 4z"/><circle cx="12" cy="13" r="3"/></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-camera-icon lucide-camera"><path d="M13.997 4a2 2 0 0 1 1.76 1.05l.486.9A2 2 0 0 0 18.003 7H20a2 2 0 0 1 2 2v9a2 2 0 0 1-2-2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1.997a2 2 0 0 0 1.759-1.048l.489-.904A2 2 0 0 1 10.004 4z"/><circle cx="12" cy="13" r="3"/></svg>
                 </button>
                 <button class="icon-btn" onclick="switchCamera()">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-switch-camera-icon lucide-switch-camera"><path d="M11 19H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5"/><path d="M13 5h7a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-5"/><circle cx="12" cy="12" r="3"/><path d="m18 22-3-3 3-3"/><path d="m6 2 3 3-3 3"/></svg>
