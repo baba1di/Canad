@@ -21,7 +21,7 @@
     }
     .switch-btn {
         background: none; border: none; color: #666; font-weight: bold; font-size: 12px;
-        cursor: pointer; padding: 10px; transition: 0.3s; display: flex; align-items: center; gap: 5px;
+        cursor: pointer; padding: 10px; transition: 0.3s; display: flex; align-items: gap: 5px;
     }
     .switch-btn.active { color: #00f2ff; border-bottom: 2px solid #00f2ff; }
 
@@ -150,7 +150,6 @@
     .save-button-inner i { font-size: 20px; color: #fff; }
     .save-button-inner.saved i { color: #ffd700; }
 
-    /* ESTILO NOVO PARA BOTÃO DE PERFIL NA MÚSICA */
     .profile-music-button-inner {
         position: absolute; top: 15px; left: 15px;
         width: 35px; height: 35px; border-radius: 50%;
@@ -162,7 +161,6 @@
     .msg-call { background: rgba(0, 242, 255, 0.1) !important; border: 1px solid var(--main) !important; align-self: center !important; width: 90%; text-align: center; }
     .btn-join-call { background: var(--main); color: #000; border: none; padding: 8px 15px; border-radius: 10px; margin-top: 10px; font-weight: bold; cursor: pointer; }
 
-    /* ESTILO NOVO COMENTÁRIO PARA MOBILE */
     .coment-bubble { 
         background: #1a1a1a; 
         padding: 10px; 
@@ -182,6 +180,27 @@
     .btn-like-coment.active { color: var(--main); }
 
     @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+    .menu-bot-float button { 
+        width: 65px; height: 65px; border-radius: 50%; background: #00f2ff; border: none; 
+        position: fixed; bottom: 105px; right: 25px; box-shadow: 0 0 15px #00f2ff; cursor: pointer; 
+        z-index: 999; display: flex; align-items: center; justify-content: center; color: #000;
+    }
+    .bot-header {
+        display: flex; justify-content: space-between; align-items: center; 
+        padding: 15px; background: #111; border-bottom: 1px solid #222; position: relative; z-index: 1001;
+    }
+    .bot-avatar-header {
+        width: 40px; height: 40px; background: #222; border-radius: 50%; border: 1px solid #00f2ff;
+        display: flex; align-items: center; justify-content: center; color: #00f2ff;
+    }
+    .bot-command-item {
+        padding: 12px; border-bottom: 1px solid #222; cursor: pointer; color: #fff; font-size: 14px;
+        transition: 0.2s; display: flex; flex-direction: column; gap: 4px;
+    }
+    .bot-command-item:hover { background: #111; color: #00f2ff; }
+    .bot-cmd-title { font-weight: bold; color: #00f2ff; }
+    .bot-cmd-desc { font-size: 12px; opacity: 0.6; color: #fff; }
 </style>
 
 <script type="module">
@@ -204,6 +223,8 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
 let user = JSON.parse(localStorage.getItem("user_completo")) || {};
+if (!user.corVerificado) user.corVerificado = 'azul'; 
+
 let meuPeer = null;
 let streamLocal = null;
 let listaUsuarios = [];
@@ -212,7 +233,9 @@ let unsubMsgs = null;
 let audioAtual = null;
 let musicasSalvas = JSON.parse(localStorage.getItem("musicas_salvas")) || [];
 let camAtiva = true;
-let facingMode = "user"; // "user" ou "environment"
+let facingMode = "user";
+
+let ultimaPerguntaBot = "";
 
 const API_KEY_CORRETOR = "cTTUEHXN5jEg3bpM";
 const girias = { "vc":"você", "vcs":"vocês", "tb":"também", "pq":"porque", "n":"não", "ja":"já", "eh":"é" };
@@ -231,10 +254,27 @@ function formatarNumero(num) {
     return num;
 }
 
-function checarVerificado(nome, seguidoresCount) {
+window.getBadgeHtml = (seguidoresCount, nome, userPrefs, isMini = false) => {
     const oficiais = ["Ka", "ISAAC"];
-    return oficiais.includes(nome) || seguidoresCount >= 1000;
-}
+    let isVerificado = oficiais.includes(nome) || seguidoresCount >= 1000;
+    if (!isVerificado) return '';
+
+    let cor = userPrefs?.corVerificado || 'azul';
+    let podeVermelho = oficiais.includes(nome) || seguidoresCount >= 2000;
+    
+    if (cor === 'vermelho' && !podeVermelho) cor = 'azul'; 
+
+    if (cor === 'vermelho') {
+        const style = isMini 
+            ? 'position: absolute; bottom: -4px; right: -4px; width: 14px; height: 14px; background: #000; border-radius: 50%; z-index: 2;' 
+            : 'width: 14px; height: 14px; margin-left: 2px; vertical-align: middle;';
+        return `<svg xmlns="http://www.w3.org/2000/svg" style="${style}" viewBox="0 0 24 24" fill="none" stroke="#ff0000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z"/><path d="m9 12 2 2 4-4" stroke="#ff0000"/></svg>`;
+    } else {
+        return isMini 
+            ? '<i class="fa-solid fa-circle-check mini-verif"></i>' 
+            : '<i class="fa-solid fa-circle-check badge-verificado"></i>';
+    }
+};
 
 async function realizarCorrecao(textoOriginal) {
     let textoProcessado = textoOriginal.split(" ").map(p => girias[p.toLowerCase()] || p).join(" ");
@@ -261,7 +301,7 @@ window.addEventListener("DOMContentLoaded", () => {
     if (user && user.nome) startApp(); else byId("scrReg").classList.add("active");
     byId("formReg").onsubmit = async (e) => {
         e.preventDefault();
-        user = { nome: byId("n").value.trim(), data: byId("regData").value, genero: byId("regGen").value, bio: byId("regBio").value, seguidores: [], seguindo: [] };
+        user = { nome: byId("n").value.trim(), data: byId("regData").value, genero: byId("regGen").value, bio: byId("regBio").value, seguidores: [], seguindo: [], corVerificado: 'azul' };
         localStorage.setItem("user_completo", JSON.stringify(user));
         startApp();
     };
@@ -283,7 +323,12 @@ async function startApp() {
         call.answer(streamLocal); 
         call.on('stream', (rs) => addVideoRemoto(call.peer, rs)); 
     });
-    await setDoc(doc(db, "usuarios_online", user.nome), { nome: user.nome, lastSeen: serverTimestamp(), bio: user.bio, seguidores: user.seguidores, seguindo: user.seguindo, perfilMusica: user.perfilMusica || null }, { merge: true });
+    await setDoc(doc(db, "usuarios_online", user.nome), { 
+        nome: user.nome, lastSeen: serverTimestamp(), bio: user.bio, 
+        seguidores: user.seguidores, seguindo: user.seguindo, perfilMusica: user.perfilMusica || null,
+        corVerificado: user.corVerificado || 'azul' 
+    }, { merge: true });
+
     onSnapshot(collection(db, "usuarios_online"), snap => {
         listaUsuarios = [];
         let todosUsers = [];
@@ -292,13 +337,37 @@ async function startApp() {
             databaseUsuarios[data.nome] = data;
             listaUsuarios.push(data.nome);
             todosUsers.push(data);
-            if(data.nome === user.nome) { user.seguidores = data.seguidores || []; user.seguindo = data.seguindo || []; user.perfilMusica = data.perfilMusica || null; }
+            if(data.nome === user.nome) { 
+                user.seguidores = data.seguidores || []; 
+                user.seguindo = data.seguindo || []; 
+                user.perfilMusica = data.perfilMusica || null; 
+                user.corVerificado = data.corVerificado || 'azul'; 
+            }
         });
         window.todosUsuariosParaRanking = todosUsers;
     });
     escutarMensagens();
     escutarPostsMusica();
     escutarChamadaAtiva();
+    escutarMensagensBot();
+    
+    // BEM-VINDO DO MELI SALVO NA SUBCOLEÇÃO PRIVADA DO USUÁRIO
+    setTimeout(async () => {
+        let jaEntrou = localStorage.getItem("meli_boas_vindas_v3");
+        let txtIntro = "";
+        if(!jaEntrou) {
+            txtIntro = `Olá ${user.nome} seja bem vindo a quando vc usa o robo meli pela primeira vez`;
+            localStorage.setItem("meli_boas_vindas_v3", "true");
+        } else {
+            txtIntro = `Ola ${user.nome} olá de novo seja bem vindo`;
+        }
+        await addDoc(collection(db, `usuarios_online/${user.nome}/mensagens_bot`), {
+            nome: "Meli (Robô)",
+            texto: txtIntro,
+            createdAt: serverTimestamp(),
+            isBot: true
+        });
+    }, 1500);
 }
 
 async function escutarChamadaAtiva() {
@@ -322,8 +391,10 @@ async function escutarPostsMusica() {
         const grid = byId("posted-music-grid");
         if(!grid) return;
         grid.innerHTML = "";
+        window.listaTodosPostsMusica = [];
         snap.forEach(d => {
             const post = d.data();
+            window.listaTodosPostsMusica.push(post);
             const postId = d.id;
             const isLiked = post.curtidas_lista?.includes(user.nome);
             
@@ -505,10 +576,55 @@ window.atualizarRanking = () => {
             </div>
         `;
     }).join("");
+
+    const containerLikes = byId("listaRankingLikes");
+    if(containerLikes) {
+        const likesPorUsuario = {};
+        (window.listaTodosPostsMusica || []).forEach(p => {
+            likesPorUsuario[p.autor] = (likesPorUsuario[p.autor] || 0) + (p.curtidas || 0);
+        });
+        const ordenadosLikes = [...window.todosUsuariosParaRanking].sort((a,b) => (likesPorUsuario[b.nome] || 0) - (likesPorUsuario[a.nome] || 0)).slice(0, 3);
+        containerLikes.innerHTML = ordenadosLikes.map((u, i) => {
+            const classe = i === 0 ? 'top-1' : (i === 1 ? 'top-2' : 'top-3');
+            const coroa = i === 0 ? '👑' : (i === 1 ? '🥈' : (i === 2 ? '🥉' : ''));
+            return `
+                <div class="rank-item ${classe}" onclick="decidirPerfil('${u.nome}')">
+                    <div class="rank-pos">${i+1}º</div>
+                    <div class="rank-avatar">${u.nome.charAt(0)}</div>
+                    <div class="rank-info">
+                        <span class="rank-name">${u.nome}</span>
+                        <span class="rank-subs">${likesPorUsuario[u.nome] || 0} likes totais</span>
+                    </div>
+                    <div class="crown">${coroa}</div>
+                </div>
+            `;
+        }).join("");
+    }
+
+    const containerMusicas = byId("listaRankingMusicas");
+    if(containerMusicas) {
+        const musicasOrdenadas = [...(window.listaTodosPostsMusica || [])].sort((a,b) => (b.curtidas || 0) - (a.curtidas || 0)).slice(0, 3);
+        containerMusicas.innerHTML = musicasOrdenadas.map((m, i) => {
+            const classe = i === 0 ? 'top-1' : (i === 1 ? 'top-2' : 'top-3');
+            const coroa = i === 0 ? '👑' : (i === 1 ? '🥈' : (i === 2 ? '🥉' : ''));
+            return `
+                <div class="rank-item ${classe}">
+                    <div class="rank-pos">${i+1}º</div>
+                    <img src="${m.img}" style="width:35px; height:35px; border-radius:6px; object-fit:cover;">
+                    <div class="rank-info" style="margin-left:10px;">
+                        <span class="rank-name" style="font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:160px;">${m.titulo}</span>
+                        <span class="rank-subs">${m.artista} — <b>${m.curtidas || 0} likes</b></span>
+                    </div>
+                    <div class="crown">${coroa}</div>
+                </div>
+            `;
+        }).join("");
+    }
 };
 
 window.abrirChat = () => {
     byId("btnFlutuante").style.display = "none";
+    byId("btnFlutuanteBot").style.display = "none";
     byId("sideContent").innerHTML = `
         <div class="chat-header">
             <button onclick="fechar()" style="background:none;border:none;color:#fff;font-size:20px">❮</button>
@@ -576,11 +692,16 @@ function escutarMensagens() {
                 const isCallMsg = d.texto.includes("📞") && d.texto.includes("ligação");
                 div.className = d.nome === user.nome ? "msg me" : "msg";
                 if(isCallMsg) div.className += " msg-call";
-                const verif = checarVerificado(d.nome, (databaseUsuarios[d.nome]?.seguidores || []).length);
+                
+                const dbUser = databaseUsuarios[d.nome] || {};
+                const segCount = (dbUser.seguidores || []).length;
+                const badgeMini = getBadgeHtml(segCount, d.nome, dbUser, true);
+                const badgeNormal = getBadgeHtml(segCount, d.nome, dbUser, false);
+                
                 div.innerHTML = `
                     <div class="msg-top">
-                        <span class="user-icon-msg" onclick="decidirPerfil('${d.nome}')">${d.nome.charAt(0)}${verif ? '<i class="fa-solid fa-circle-check mini-verif"></i>' : ''}</span>
-                        <span style="font-size:10px;opacity:0.8;font-weight:bold;">${d.nome}${verif ? '<i class="fa-solid fa-circle-check badge-verificado"></i>' : ''}</span>
+                        <span class="user-icon-msg" onclick="decidirPerfil('${d.nome}')">${d.nome.charAt(0)}${badgeMini}</span>
+                        <span style="font-size:10px;opacity:0.8;font-weight:bold;">${d.nome}${badgeNormal}</span>
                     </div>
                     <p>${escapeHtml(d.texto)}</p>
                     ${isCallMsg ? `<button class="btn-join-call" onclick="entrarNaCall()">ENTRAR NA CHAMADA</button>` : pandaSvg}
@@ -709,7 +830,10 @@ window.verPerfilExterno = async (n) => {
     const d = (await getDoc(doc(db, "usuarios_online", n))).data();
     if(!d) return;
     const ja = (d.seguidores || []).includes(user.nome);
-    const verif = checarVerificado(n, (d.seguidores || []).length);
+    
+    const segCount = (d.seguidores || []).length;
+    const badgeMini = getBadgeHtml(segCount, n, d, true);
+    const badgeNormal = getBadgeHtml(segCount, n, d, false);
     
     const qMusicas = query(collection(db, "posts_musica"), orderBy("timestamp", "desc"));
     const snapMusicas = await getDocs(qMusicas);
@@ -731,11 +855,11 @@ window.verPerfilExterno = async (n) => {
 
     byId("perfilExternoContent").innerHTML = `
         ${musicHtml}
-        <div class="avatar-grande">${n.charAt(0)}${verif ? '<i class="fa-solid fa-circle-check mini-verif"></i>' : ''}</div>
-        <h2 style="text-align:center">${n}${verif ? '<i class="fa-solid fa-circle-check badge-verificado"></i>' : ''}</h2>
+        <div class="avatar-grande">${n.charAt(0)}${badgeMini}</div>
+        <h2 style="text-align:center">${n}${badgeNormal}</h2>
         <p style="text-align:center; opacity:0.7; margin:10px 0;">${d.bio || 'Sem bio.'}</p>
         <div class="stats-container">
-            <div class="stat-item" style="cursor:pointer;" onclick="abrirListaConexoes('${n}', 'seguidores')"><span class="stat-val">${formatarNumero(d.seguidores.length)}</span><span class="stat-label">Seguidores</span></div>
+            <div class="stat-item" style="cursor:pointer;" onclick="abrirListaConexoes('${n}', 'seguidores')"><span class="stat-val">${formatarNumero(segCount)}</span><span class="stat-label">Seguidores</span></div>
             <div class="stat-item" style="cursor:pointer;" onclick="abrirListaConexoes('${n}', 'seguindo')"><span class="stat-val">${formatarNumero(d.seguindo.length)}</span><span class="stat-label">Seguindo</span></div>
             <div class="stat-item"><span class="stat-val">${formatarNumero(totalLikesExterno)}</span><span class="stat-label">Likes ❤️</span></div>
         </div>
@@ -770,6 +894,20 @@ window.toggleSeguir = async (n) => {
 window.abrirMeuPerfil = () => { 
     byId("editNome").value = user.nome; 
     byId("editBio").value = user.bio || ""; 
+    
+    const oficiais = ["Ka", "ISAAC"];
+    let podeVermelho = oficiais.includes(user.nome) || (user.seguidores && user.seguidores.length >= 2000);
+    if (podeVermelho) {
+        byId("boxVerificadoVermelho").style.display = "block";
+        byId("labelBadgeStatus").textContent = "Verificado exclusivo 2000+";
+        byId("editCorVerificado").value = user.corVerificado || 'azul';
+    } else {
+        byId("boxVerificadoVermelho").style.display = "block";
+        byId("labelBadgeStatus").textContent = "Se ativar o azul 1000+";
+        byId("editCorVerificado").innerHTML = `<option value="azul">Ativar Azul 🔵</option>`;
+        user.corVerificado = 'azul';
+    }
+
     atualizarVisualPerfil(); 
     byId("painelPerfil").classList.add("active"); 
     carregarMusicasPerfil(user.nome, "listaMinhasMusicas");
@@ -786,8 +924,8 @@ window.abrirMeuPerfil = () => {
 };
 
 async function atualizarVisualPerfil() { 
-    const verif = checarVerificado(user.nome, user.seguidores.length);
-    byId("meuAvatarPerfil").innerHTML = `${user.nome.charAt(0)}${verif ? '<i class="fa-solid fa-circle-check mini-verif"></i>' : ''}`;
+    const badgeMini = getBadgeHtml(user.seguidores.length, user.nome, user, true);
+    byId("meuAvatarPerfil").innerHTML = `${user.nome.charAt(0)}${badgeMini}`;
     byId("meusSeguidores").textContent = formatarNumero(user.seguidores.length); 
     byId("meusSeguindo").textContent = formatarNumero(user.seguindo.length);
 
@@ -806,6 +944,15 @@ async function atualizarVisualPerfil() {
 window.salvarPerfil = async () => {
     const novoNome = byId("editNome").value.trim();
     const novaBio = byId("editBio").value;
+    
+    const oficiais = ["Ka", "ISAAC"];
+    let podeVermelho = oficiais.includes(user.nome) || (user.seguidores && user.seguidores.length >= 2000);
+    if (podeVermelho) {
+        user.corVerificado = byId("editCorVerificado").value;
+    } else {
+        user.corVerificado = 'azul'; 
+    }
+
     if(novoNome && novoNome !== user.nome) {
         await deleteDoc(doc(db, "usuarios_online", user.nome));
         user.nome = novoNome;
@@ -814,8 +961,10 @@ window.salvarPerfil = async () => {
     localStorage.setItem("user_completo", JSON.stringify(user));
     await setDoc(doc(db, "usuarios_online", user.nome), { 
         nome: user.nome, bio: user.bio, lastSeen: serverTimestamp(), 
-        seguidores: user.seguidores, seguindo: user.seguindo, perfilMusica: user.perfilMusica || null
+        seguidores: user.seguidores, seguindo: user.seguindo, perfilMusica: user.perfilMusica || null,
+        corVerificado: user.corVerificado
     }, { merge: true });
+    
     location.reload();
 };
 
@@ -839,7 +988,7 @@ window.sairChamada = async () => {
     await updateDoc(statusRef, { participantes: arrayRemove(user.nome) });
     location.reload(); 
 };
-window.fechar = () => { byId("side").classList.remove("open"); byId("btnFlutuante").style.display = "flex"; };
+window.fechar = () => { byId("side").classList.remove("open"); byId("btnFlutuante").style.display = "flex"; byId("btnFlutuanteBot").style.display = "flex"; };
 window.fecharMeuPerfil = () => { byId("painelPerfil").classList.remove("active"); if(audioAtual) audioAtual.pause(); };
 window.fecharPerfilExterno = () => { byId("painelExterno").classList.remove("active"); if(audioAtual) audioAtual.pause(); };
 
@@ -957,7 +1106,6 @@ window.playM = (u, img, t) => {
     audioAtual.play();
 };
 
-/* NOVAS IMPLEMENTAÇÕES DE ASSISTÊNCIA DE CONEXÕES E MÚSICAS NO PERFIL */
 async function carregarMusicasPerfil(nomeUsuario, containerId) {
     const box = byId(containerId);
     if(!box) return;
@@ -1034,6 +1182,255 @@ window.abrirListaConexoes = async (nomeUsuario, tipo) => {
 window.fecharPainelConexoes = () => {
     byId("painelConexoes").classList.remove("active");
 };
+
+/* ========================================================= */
+/* LÓGICA EXCLUSIVA DO BOT (MELI) - AGORA 100% PRIVADA */
+/* ========================================================= */
+let unsubBotMsgs = null;
+
+const comandosBotValidos = [
+    { cmd: "/qual musicas estão no top 10", desc: "Mostra a música número 1 do momento." },
+    { cmd: "/quem tem mas seguidores top 1 2 3", desc: "Mostra o ranking dos 3 usuários com mais seguidores." },
+    { cmd: "/quem criou o site kaue.reisz e isaac", desc: "Informa sobre a criação do site." },
+    { cmd: "/qual seu nome robo meli", desc: "Descubra o meu nome oficial." },
+    { cmd: "/oque esse site é", desc: "Explica a finalidade desta aplicação." },
+    { cmd: "/como eu posto musica e preciso avisar q precisa por no salvas ⭐️", desc: "Instruções para postar músicas." },
+    { cmd: "/como eu coloco musica no meu perfil", desc: "Aprenda a colocar música no perfil." },
+    { cmd: "/como funciona o robo", desc: "Veja como eu funciono." },
+    { cmd: "/oque é aquele botão de Notificação azul", desc: "Entenda o botão de notificações." },
+    { cmd: "/como eu entro em call", desc: "Aprenda a entrar em chamadas." },
+    { cmd: "/como funciona a call", desc: "Detalhes de como as chamadas funcionam." },
+    { cmd: "/como funciona os perfils", desc: "Saiba como os perfis funcionam." },
+    { cmd: "/vc acha que eu sou oque", desc: "Deixe o robô Meli analisar o que você é." },
+    { cmd: "/tem quantas pessoas nesse app/site", desc: "Mostra o número total de pessoas registradas." },
+    { cmd: "/quantos seguidores e quantas pessoas estou seguindo e quantos likes eu tenho", desc: "Puxa todos os dados detalhados da sua conta." }
+];
+
+window.checarQuickBot = (i) => {
+    const panel = byId("quickBotCommands");
+    if(i.value.startsWith("/")) {
+        panel.innerHTML = comandosBotValidos.map(c => `
+            <div class="bot-command-item" onclick="selecionarQuickBot('${c.cmd}')" style="padding:10px; border-bottom:1px solid #222; cursor:pointer;">
+                <span style="font-weight:bold; color:#00f2ff; font-size:13px; display:block;">${c.cmd}</span>
+                <span style="font-size:11px; color:#aaa;">${c.desc}</span>
+            </div>
+        `).join("");
+        panel.style.display = "block";
+    } else {
+        panel.style.display = "none";
+    }
+};
+
+window.selecionarQuickBot = (cmd) => {
+    byId("botMsgInput").value = cmd;
+    byId("quickBotCommands").style.display = "none";
+    byId("botMsgInput").focus();
+};
+
+window.abrirChatBot = () => {
+    byId("btnFlutuante").style.display = "none";
+    byId("btnFlutuanteBot").style.display = "none";
+    byId("sideContentBot").innerHTML = `
+        <div class="bot-header">
+            <button onclick="fecharBot()" style="background:none;border:none;color:#fff;font-size:20px">❮</button>
+            <div style="display:flex; gap:10px; align-items:center;">
+                <div class="bot-avatar-header">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6V2H8"/><path d="M15 11v2"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="M20 16a2 2 0 0 1-2 2H8.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 4 20.286V8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2z"/><path d="M9 11v2"/></svg>
+                </div>
+                <span style="font-weight:bold; color:#00f2ff;">Meli inteligência meli <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="#FFD700" stroke="#FFD700" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle; margin-left:4px;"><path d="M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z"/><path d="m9 12 2 2 4-4" stroke="#000" stroke-width="2.5"/></svg></span>
+            </div>
+            <button class="icon-btn" onclick="abrirMenuComandBot()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg>
+            </button>
+        </div>
+        <div class="chat-wrapper" style="position:relative;">
+            <div id="botChatMsgs" style="flex:1; overflow-y:auto; padding:15px; display:flex; flex-direction:column; gap:10px; scroll-behavior: smooth;"></div>
+            <div id="quickBotCommands" style="position:absolute; bottom:70px; left:10px; width:calc(100% - 20px); background:#111; border:1px solid #00f2ff; border-radius:12px; z-index:10002; display:none; max-height:200px; overflow-y:auto; box-shadow:0 0 10px rgba(0,242,255,0.2);"></div>
+            <div class="chat-bar">
+                <input id="botMsgInput" placeholder="Mande um comando /..." oninput="checarQuickBot(this)" onkeypress="if(event.key === 'Enter') enviarMsgBot()">
+                <button class="send-btn" onclick="enviarMsgBot()">➤</button>
+            </div>
+        </div>
+    `;
+    byId("sideBot").classList.add("open");
+    escutarMensagensBot();
+};
+
+window.fecharBot = () => {
+    byId("sideBot").classList.remove("open");
+    byId("btnFlutuante").style.display = "flex";
+    byId("btnFlutuanteBot").style.display = "flex";
+};
+
+window.abrirMenuComandBot = () => {
+    byId("listaComandosConteudo").innerHTML = comandosBotValidos.map(c => `
+        <div class="bot-command-item" onclick="selecionarComandoBot('${c.cmd}')">
+            <span class="bot-cmd-title">${c.cmd}</span>
+            <span class="bot-cmd-desc">${c.desc}</span>
+        </div>
+    `).join("");
+    
+    byId("painelComandosBot").classList.add("active");
+};
+
+window.selecionarComandoBot = (cmd) => {
+    byId("botMsgInput").value = cmd;
+    byId("painelComandosBot").classList.remove("active");
+    byId("botMsgInput").focus();
+};
+
+window.enviarMsgBot = async () => {
+    const input = byId("botMsgInput");
+    let val = input.value.trim();
+    if (!val) return;
+    
+    byId("quickBotCommands").style.display = "none";
+    
+    const cmdLower = val.toLowerCase();
+    let comandoEncontrado = comandosBotValidos.find(c => c.cmd.toLowerCase() === cmdLower);
+    
+    if (!comandoEncontrado && cmdLower.startsWith("/")) {
+        let melhorMatch = null;
+        let maiorSimilaridade = 0;
+        
+        comandosBotValidos.forEach(c => {
+            const cmdTexto = c.cmd.toLowerCase();
+            let pontos = 0;
+            if (cmdTexto.includes(cmdLower) || cmdLower.includes(cmdTexto)) {
+                pontos += 10;
+            }
+            const palavrasDigitadas = cmdLower.replace("/", "").split(" ");
+            palavrasDigitadas.forEach(p => {
+                if (p.length > 2 && cmdTexto.includes(p)) pontos += 5;
+            });
+            if (pontos > maiorSimilaridade) {
+                maiorSimilaridade = pontos;
+                melhorMatch = c.cmd;
+            }
+        });
+        
+        if (melhorMatch && maiorSimilaridade > 0) {
+            val = melhorMatch;
+        }
+    }
+    
+    // SALVAMENTO DA MENSAGEM DO USUÁRIO NA COLEÇÃO PRIVADA
+    await addDoc(collection(db, `usuarios_online/${user.nome}/mensagens_bot`), {
+        nome: user.nome,
+        texto: val,
+        createdAt: serverTimestamp(),
+        isBot: false
+    });
+    
+    input.value = "";
+    
+    setTimeout(async () => {
+        let resposta = "Desculpe, não reconheço esse comando. Clique no ícone de prancheta acima ou digite `/` para ver o que pode enviar!";
+        const currentCmdLower = val.toLowerCase();
+        
+        if (currentCmdLower.includes("musicas estão no top 10") || currentCmdLower.includes("musica")) {
+            resposta = "🎵 Buscando... A música número #1 no Top Gráficos atualmente é reproduzida via aba 'MÚSICA' clicando na opção 'TOP 📉'!";
+        } 
+        else if (currentCmdLower.includes("seguidores top 1 2 3")) {
+            resposta = "🏆 Você pode conferir os Top 1, 2 e 3 usuários com mais seguidores em tempo real diretamente na aba 'RANKING 🏆' do menu superior!";
+        } 
+        else if (currentCmdLower.includes("criou o site")) {
+            resposta = "✨ Este incrível ambiente interativo e customizado foi idealizado e criado por kaue.reisz e isaac!";
+        } 
+        else if (currentCmdLower.includes("qual seu nome robo") || currentCmdLower.includes("seu nome")) {
+            resposta = "🤖 Meu nome completo é Meli inteligência meli! Estou aqui para guiar suas dúvidas e ajudar a navegar no site.";
+        } 
+        else if (currentCmdLower.includes("oque esse site é") || currentCmdLower.includes("site é")) {
+            resposta = "💬 Este ambiente é um site de conversa interativo, completo com compartilhamento de mídia, ranking de conexões e sistema de streaming musical!";
+        }
+        else if (currentCmdLower.includes("posto musica") || currentCmdLower.includes("salvas ⭐️") || currentCmdLower.includes("salvas")) {
+            resposta = "⭐ Para postar uma música, primeiro você precisa ir na aba MÚSICA, buscar a música desejada e salvá-la clicando no ícone de bandeirinha. Depois, vá na opção PUBLICADAS (ou aperte no painel) e clique na música salva para postar!";
+        }
+        else if (currentCmdLower.includes("musica no meu perfil") || currentCmdLower.includes("coloco musica")) {
+            resposta = "🎶 Na tela de músicas, em cada card de música, existe um pequeno ícone de nota musical 🎵. Clicando nele, essa música é adicionada como o tema do seu perfil!";
+        }
+        else if (currentCmdLower.includes("funciona o robo") || currentCmdLower.includes("robo")) {
+            resposta = "🤖 Eu sou o Meli inteligência meli! Para falar comigo, basta digitar `/` no chat e eu vou abrir um lindo painel flutuante mostrando todos os comandos. Clique em um deles e eu te respondo!";
+        }
+        else if (currentCmdLower.includes("notificação azul") || currentCmdLower.includes("notificacao azul") || currentCmdLower.includes("botão de notificação")) {
+            resposta = "🔔 O botão azul de sino no chat serve para te avisar as novidades! Ele mostra se alguém te seguiu, parou de seguir, te mencionou (@), ligou para você ou visitou seu perfil!";
+        }
+        else if (currentCmdLower.includes("entro em call") || currentCmdLower.includes("call")) {
+            resposta = "📞 No topo do chat principal existe um ícone de telefone. Clique nele para iniciar ou entrar em uma chamada de vídeo em grupo. É possível ter até 5 pessoas juntas!";
+        }
+        else if (currentCmdLower.includes("funciona a call") || currentCmdLower.includes("como funciona a call")) {
+            resposta = "🎥 A call permite que até 5 pessoas conversem por vídeo e áudio em tempo real! Você pode silenciar a câmera, inverter a lente do celular e sair clicando no botão vermelho.";
+        }
+        else if (currentCmdLower.includes("funciona os perfils") || currentCmdLower.includes("perfils")) {
+            resposta = "👤 O seu perfil é a sua cara no app! Para ver o seu, clique no ícone de bonequinho no topo do chat. Para ver o de outras pessoas, basta clicar na foto ou nome delas nas mensagens, ranking ou publicações de música.";
+        }
+        else if (currentCmdLower.includes("vc acha que eu sou oque") || currentCmdLower.includes("sou oque")) {
+            if(ultimaPerguntaBot === "sou oque") {
+                resposta = "Eu acho que você é um usuário incrível, focado, inteligente e muito dedicado ao que faz aqui na plataforma! (Repito a mesma coisa porque sei que fala a verdade!)";
+            } else {
+                resposta = "Eu acho que você é um usuário incrível, focado, inteligente e muito dedicado ao que faz aqui na plataforma!";
+            }
+            ultimaPerguntaBot = "sou oque";
+        }
+        // NOVO COMANDO COMPLETO SOLICITADO
+        else if (currentCmdLower.includes("quantos seguidores e quantas pessoas estou seguindo") || currentCmdLower.includes("quantos seguidores") || currentCmdLower.includes("quantos likes") || currentCmdLower.includes("pessoas me segue") || currentCmdLower.includes("pessoas eu sigo")) {
+            let seguidoresNum = user.seguidores ? user.seguidores.length : 0;
+            let seguindoNum = user.seguindo ? user.seguindo.length : 0;
+            
+            const qMusicas = query(collection(db, "posts_musica"));
+            const snapMusicas = await getDocs(qMusicas);
+            let totalLikesMeuPerfil = 0;
+            snapMusicas.forEach(docSnap => {
+                const m = docSnap.data();
+                if(m.autor === user.nome) {
+                    totalLikesMeuPerfil += (m.curtidas || 0);
+                }
+            });
+            
+            resposta = `👤 [DADOS DO SEU PERFIL]\n\nOlá ${user.nome}, verifiquei seus dados atualizados no sistema:\n\n• 👥 Seguidores: ${seguidoresNum}\n• 👣 Seguindo: ${seguindoNum}\n• ❤️ Total de Likes: ${totalLikesMeuPerfil} nas suas publicações.`;
+            ultimaPerguntaBot = "";
+        }
+        else if (currentCmdLower.includes("quantas pessoas nesse app") || currentCmdLower.includes("app/site")) {
+            resposta = `📊 Analisando o banco de dados... Atualmente existem exatamente ${listaUsuarios.length} pessoas conectadas ou registradas no site!`;
+            ultimaPerguntaBot = "";
+        }
+
+        // SALVAMENTO DA RESPOSTA DO BOT NA COLEÇÃO PRIVADA DO USUÁRIO
+        await addDoc(collection(db, `usuarios_online/${user.nome}/mensagens_bot`), {
+            nome: "Meli (Robô)",
+            texto: resposta,
+            createdAt: serverTimestamp(),
+            isBot: true
+        });
+    }, 800);
+};
+
+function escutarMensagensBot() {
+    const box = byId("botChatMsgs");
+    if(!box) return;
+    if(unsubBotMsgs) unsubBotMsgs();
+    
+    // SINCRO PRIVADA: ESCUTA APENAS AS MENSAGENS DO USUÁRIO ATUAL
+    const q = query(collection(db, `usuarios_online/${user.nome}/mensagens_bot`), orderBy("createdAt", "asc"));
+    unsubBotMsgs = onSnapshot(q, snap => {
+        box.innerHTML = "";
+        snap.forEach(docSnap => {
+            const d = docSnap.data();
+            const div = document.createElement("div");
+            div.className = d.isBot ? "msg" : "msg me";
+            
+            div.innerHTML = `
+                <div class="msg-top">
+                    <span class="user-icon-msg" style="${d.isBot ? 'color:#00f2ff; border:1px solid #00f2ff;' : ''}">${d.nome.charAt(0)}</span>
+                    <span style="font-size:10px;opacity:0.8;font-weight:bold; color:${d.isBot ? '#00f2ff' : '#fff'}">${d.nome}</span>
+                </div>
+                <p>${escapeHtml(d.texto)}</p>
+            `;
+            box.appendChild(div);
+        });
+        box.scrollTop = box.scrollHeight;
+    });
+}
 </script>
 </head>
 <body>
@@ -1060,8 +1457,25 @@ window.fecharPainelConexoes = () => {
 <div class="main-wrapper">
     <div id="pageChat" class="app-page active">
         <div id="btnFlutuante" class="menu-btn-float"><button onclick="abrirChat()">💬</button></div>
+        
+        <div id="btnFlutuanteBot" class="menu-bot-float">
+            <button onclick="abrirChatBot()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6V2H8"/><path d="M15 11v2"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="M20 16a2 2 0 0 1-2 2H8.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 4 20.286V8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2z"/><path d="M9 11v2"/></svg>
+            </button>
+        </div>
+
         <div id="side" class="panel"><div id="sideContent" style="height:100%; display:flex; flex-direction:column;"></div></div>
         
+        <div id="sideBot" class="panel"><div id="sideContentBot" style="height:100%; display:flex; flex-direction:column;"></div></div>
+
+        <div id="painelComandosBot" class="screen" style="z-index: 25000;">
+            <div style="background:#111; padding:20px; border-radius:25px; width:85%; max-height:70vh; display:flex; flex-direction:column; border:1px solid #333;">
+                <h3 style="color:#00f2ff; text-align:center; margin-bottom:15px;">Comandos Disponíveis</h3>
+                <div id="listaComandosConteudo" style="flex:1; overflow-y:auto; padding-right:5px;"></div>
+                <button class="save-btn" onclick="document.getElementById('painelComandosBot').classList.remove('active')" style="margin-top:15px; padding:10px; background:#222; color:#fff;">FECHAR</button>
+            </div>
+        </div>
+
         <div id="painelPerfil" class="screen">
             <div style="background:#111; padding:25px; border-radius:25px; width:85%; border:1px solid #00f2ff; position: relative; max-height:85vh; overflow-y:auto;">
                 <button style="position: absolute; top: 15px; right: 20px; background:none; border:none; color:#fff; font-size: 22px; z-index:10;" onclick="fecharMeuPerfil()">✕</button>
@@ -1077,6 +1491,17 @@ window.fecharPainelConexoes = () => {
                 </div>
                 <input id="editNome" placeholder="Nome">
                 <textarea id="editBio" placeholder="Bio"></textarea>
+                
+                <div id="boxVerificadoVermelho" style="margin-top: 10px; background: rgba(0,242,255,0.05); padding: 15px; border-radius: 12px; border: 1px solid #00f2ff;">
+                    <label id="labelBadgeStatus" style="color:#00f2ff; font-size:13px; font-weight:bold; display:block; margin-bottom:8px;">
+                        Verificado exclusivo
+                    </label>
+                    <select id="editCorVerificado" style="margin-top: 0; border-color: #00f2ff; background: #000; color: #fff;">
+                        <option value="azul">Ativar Azul 🔵</option>
+                        <option value="vermelho">Ativar Vermelho 🔴</option>
+                    </select>
+                </div>
+
                 <button class="save-btn" onclick="salvarPerfil()">SALVAR</button>
                 <div id="musicasMeuPerfil" style="margin-top:20px; border-top:1px solid #222; padding-top:15px;">
                     <h4 style="font-size:12px; color:var(--main); margin-bottom:10px; text-transform:uppercase; text-align:center;">Minhas Músicas</h4>
@@ -1114,10 +1539,16 @@ window.fecharPainelConexoes = () => {
         </div>
     </div>
 
-    <div id="pageRanking" class="app-page">
-        <div id="ranking-usuarios">
+    <div id="pageRanking" class="app-page" style="overflow-y: auto; height: 100%;">
+        <div id="ranking-usuarios" style="margin-bottom: 120px;">
             <h2 style="text-align:center; color:var(--main); margin-bottom:20px;">TOP USUÁRIOS ✨</h2>
             <div id="listaRanking"></div>
+
+            <h2 style="text-align:center; color:var(--main); margin-top:40px; margin-bottom:20px;">TOP USUÁRIOS LIKES ❤️</h2>
+            <div id="listaRankingLikes"></div>
+
+            <h2 style="text-align:center; color:var(--main); margin-top:40px; margin-bottom:20px;">TOP MÚSICAS PUBLICADAS 🎵</h2>
+            <div id="listaRankingMusicas"></div>
         </div>
     </div>
 
@@ -1155,25 +1586,14 @@ window.fecharPainelConexoes = () => {
                 <div style="width:40px; height:5px; background:#333; border-radius:5px; margin: 0 auto 15px;"></div>
                 <h3 style="margin-bottom:15px; text-align:center;">Comentários</h3>
                 <div id="boxComentarios" style="flex:1; overflow-y:auto; margin-bottom:15px; padding-right:5px;"></div>
-                <div style="display:flex; gap:10px; background:#222; padding:8px; border-radius:20px;">
-                    <input id="inputComentario" placeholder="Escreva algo..." style="margin-top:0; background:transparent; border:none; padding:10px;">
-                    <button class="send-btn" onclick="enviarComentario()" style="width:40px; height:40px; font-size:14px;">➤</button>
+                <div style="display:flex; gap:10px; background:#222; padding:10px; border-radius:20px;">
+                    <input type="text" id="inputComentario" placeholder="Escreva um comentário..." style="margin-top:0; flex:1;">
+                    <button class="send-btn" onclick="enviarComentario()" style="width:45px; height:45px;">➤</button>
                 </div>
-                <button class="save-btn" onclick="fecharPainelComent()" style="padding:10px; background:none; color:#666;">FECHAR</button>
+                <button class="save-btn" onclick="fecharPainelComent()" style="margin-top:10px; background:#222; color:#fff;">FECHAR</button>
             </div>
         </div>
-
-        <footer class="music-footer">
-            <div style="display:flex; align-items:center; gap:15px;" onclick="decidirPerfil(user.nome)">
-                <img id="current-img" src="" style="width:55px; height:55px; border-radius:8px; display:none;">
-                <div style="display:flex; flex-direction:column;">
-                    <h4 id="current-title" style="font-size:14px;">Nenhuma tocando</h4>
-                    <span style="font-size:10px; opacity:0.6;" id="meuNomeMusic">${user.nome} • Ver Perfil</span>
-                </div>
-            </div>
-        </footer>
     </div>
 </div>
-
 </body>
 </html>
