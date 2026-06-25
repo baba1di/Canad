@@ -16,11 +16,18 @@
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             z-index: 1000; transition: opacity 0.6s ease, transform 0.6s ease;
         }
-        .welcome-content { text-align: center; animation: slideUpFade 1s ease-out forwards; }
+        .welcome-content { text-align: center; animation: slideUpFade 1s ease-out forwards; display: flex; flex-direction: column; align-items: center; }
         .welcome-icon { font-size: 4rem; color: #8b5cf6; margin-bottom: 20px; animation: float 3s ease-in-out infinite; }
         .welcome-title { font-size: 2.2rem; font-weight: 800; margin-bottom: 10px; }
-        .welcome-subtitle { color: #94a3b8; font-size: 1.1rem; margin-bottom: 40px; }
-        .btn-enter { background: #8b5cf6; color: white; border: none; padding: 16px 40px; font-size: 1.2rem; font-weight: bold; border-radius: 30px; cursor: pointer; box-shadow: 0 10px 25px rgba(139, 92, 246, 0.4); }
+        .welcome-subtitle { color: #94a3b8; font-size: 1.1rem; margin-bottom: 30px; }
+        
+        /* CAMPO DE NOME BLOQUEADO */
+        .name-field-container { margin-bottom: 25px; width: 100%; max-width: 280px; text-align: left; }
+        .name-field-label { color: #94a3b8; font-size: 0.9rem; font-weight: 600; margin-bottom: 8px; display: block; padding-left: 5px; }
+        .name-input-readonly { width: 100%; background: #1e293b; color: #cbd5e1; border: 2px solid #334155; padding: 14px 20px; font-size: 1.1rem; font-weight: bold; border-radius: 16px; text-align: center; outline: none; cursor: not-allowed; }
+
+        .btn-enter { background: #8b5cf6; color: white; border: none; padding: 16px 40px; font-size: 1.2rem; font-weight: bold; border-radius: 30px; cursor: pointer; box-shadow: 0 10px 25px rgba(139, 92, 246, 0.4); transition: all 0.3s ease; width: 100%; max-width: 280px; }
+        .btn-enter:disabled { cursor: not-allowed; opacity: 0.8; }
 
         /* --- TELA PRINCIPAL --- */
         .main-app { display: none; max-width: 600px; margin: 0 auto; min-height: 100vh; background-color: #0f172a; padding-bottom: 80px; }
@@ -29,6 +36,54 @@
         .robot-btn { cursor: pointer; color: #8b5cf6; transition: transform 0.2s; }
         .robot-btn:hover { transform: scale(1.1); }
         .btn-open-panel { background: #8b5cf6; color: white; border: none; padding: 10px 20px; border-radius: 20px; font-weight: bold; font-size: 1rem; cursor: pointer; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3); }
+
+        /* --- CONTADOR ONLINE PROFISSIONAL --- */
+        .online-counter {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(30, 41, 59, 0.6);
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #34d399;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border: 1px solid rgba(52, 211, 153, 0.2);
+            backdrop-filter: blur(8px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1), 0 0 10px rgba(52, 211, 153, 0.05);
+            animation: fadeInDown 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+            pointer-events: none;
+            white-space: nowrap;
+        }
+        .pulse-dot {
+            width: 8px;
+            height: 8px;
+            background-color: #34d399;
+            border-radius: 50%;
+            display: inline-block;
+            position: relative;
+        }
+        .pulse-dot::after {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            background-color: #34d399;
+            border-radius: 50%;
+            animation: pulseGlow 2s infinite ease-in-out;
+        }
+        #online-count {
+            display: inline-block;
+            transition: transform 0.3s ease;
+        }
+        .number-pop {
+            animation: popNumber 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
 
         /* --- PAINEL DE REGRAS (LATERAL) --- */
         .side-panel { position: fixed; top: 0; right: -100%; width: 100%; max-width: 320px; height: 100%; background: #1e293b; z-index: 5000; padding: 30px; transition: right 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); border-left: 2px solid #8b5cf6; overflow-y: auto; }
@@ -85,6 +140,21 @@
         @keyframes slideIn { 0% { opacity: 0; transform: translateX(-20px); } 100% { opacity: 1; transform: translateX(0); } }
         @keyframes popAnimation { 0% { transform: scale(1); } 50% { transform: scale(1.4); } 100% { transform: scale(1); } }
         
+        @keyframes pulseGlow {
+            0% { transform: scale(0.95); opacity: 1; box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.7); }
+            70% { transform: scale(2.5); opacity: 0; box-shadow: 0 0 0 8px rgba(52, 211, 153, 0); }
+            100% { transform: scale(0.95); opacity: 0; box-shadow: 0 0 0 0 rgba(52, 211, 153, 0); }
+        }
+        @keyframes fadeInDown {
+            0% { opacity: 0; transform: translate(-50%, -15px); }
+            100% { opacity: 1; transform: translate(-50%, 0); }
+        }
+        @keyframes popNumber {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.3); color: #6ee7b7; }
+            100% { transform: scale(1); }
+        }
+        
         .empty-state { text-align: center; color: #64748b; padding: 40px 20px; font-size: 1.1rem; }
     </style>
 </head>
@@ -95,7 +165,13 @@
             <i class="fa-solid fa-mask welcome-icon"></i>
             <h1 class="welcome-title">Seja bem vindo</h1>
             <p class="welcome-subtitle">O seu espaço anônimo para falar.</p>
-            <button id="btn-enter" class="btn-enter">Entrar no Chat</button>
+            
+            <div class="name-field-container">
+                <span class="name-field-label">Nome de Usuário</span>
+                <input type="text" value="Anônimo" class="name-input-readonly" readonly disabled>
+            </div>
+
+            <button id="btn-enter" class="btn-enter">Enviar Solicitação</button>
         </div>
     </div>
 
@@ -104,6 +180,12 @@
             <div class="app-title">
                 <i class="fa-solid fa-robot robot-btn" id="btn-open-rules"></i> Anônimo
             </div>
+            
+            <div class="online-counter" id="online-counter">
+                <span class="pulse-dot"></span>
+                <span id="online-count">1</span> online
+            </div>
+
             <button id="btn-open-panel" class="btn-open-panel"><i class="fa-solid fa-pen-to-square"></i> Postar</button>
         </div>
         <div id="feed-container" class="feed-container"></div>
@@ -150,6 +232,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
         import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, updateDoc, increment } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+        import { getDatabase, ref, set, onValue, onDisconnect } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
         const firebaseConfig = {
           apiKey: "AIzaSyAqgPPmWG6cM3xpFLtOBjQJ8PmAVV7YgaY",
@@ -163,16 +246,13 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
-
-        // Removendo qualquer rastro antigo do navegador do usuário por segurança
-        localStorage.removeItem("anon_user_id");
-        localStorage.removeItem("msg_likes");
-        localStorage.removeItem("thumb_likes");
+        const rtdb = getDatabase(app);
 
         // UI Elements
         const welcomeScreen = document.getElementById('welcome-screen');
         const mainApp = document.getElementById('main-app');
         const feedContainer = document.getElementById('feed-container');
+        const btnEnter = document.getElementById('btn-enter');
         
         // Panels
         const postOverlay = document.getElementById('post-panel-overlay');
@@ -195,16 +275,114 @@
         // Variáveis de Estado
         let mensagensGlobais = [];
         let activeMessageId = null;
-        let likesSalvos = []; // Armazenado apenas na sessão atual, não salva dados no aparelho
+        let likesSalvos = []; 
         let thumbsSalvos = [];
+        let solicitacaoStatus = "nenhuma"; 
 
-        // Entrar
-        document.getElementById('btn-enter').addEventListener('click', () => {
-            welcomeScreen.style.opacity = '0'; welcomeScreen.style.transform = 'scale(1.1)';
-            setTimeout(() => { welcomeScreen.style.display = 'none'; mainApp.style.display = 'block'; carregarMensagens(); }, 600);
+        // --- SISTEMA DE PERSISTÊNCIA ESTÁVEL ---
+        
+        // 1. Obtém ou cria ID fixo no localStorage (persiste ao fechar e abrir abas)
+        let idSolicitacao = localStorage.getItem("id_solicitacao_chat");
+        if (!idSolicitacao) {
+            idSolicitacao = "req_" + Math.random().toString(36).substring(2, 12);
+            localStorage.setItem("id_solicitacao_chat", idSolicitacao);
+        }
+
+        // 2. Verifica se o usuário já teve a entrada aprovada e confirmada antes
+        const jaEntrou = localStorage.getItem("app_liberado");
+
+        if (jaEntrou === "true") {
+            // Pula a tela de boas vindas permanentemente
+            welcomeScreen.style.display = 'none';
+            mainApp.style.display = 'block';
+            carregarMensagens();
+            inicializarContadorOnline();
+        } else {
+            // Monitoramento em tempo real do nó de solicitação do Firebase
+            const requestRef = ref(rtdb, 'solicitacoes_entrada/' + idSolicitacao);
+            
+            onValue(requestRef, (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    solicitacaoStatus = data.status;
+                    
+                    if (data.status === "pendente") {
+                        btnEnter.innerText = "Aguardando aprovação...";
+                        btnEnter.disabled = true;
+                        btnEnter.style.background = "#475569";
+                        btnEnter.style.boxShadow = "none";
+                    } 
+                    else if (data.status === "aceito") {
+                        btnEnter.innerText = "Solicitação aceita! Entrar";
+                        btnEnter.disabled = false;
+                        btnEnter.style.background = "#10b981"; 
+                        btnEnter.style.boxShadow = "0 10px 25px rgba(16, 185, 129, 0.4)";
+                    }
+                    else if (data.status === "recusado") {
+                        btnEnter.innerText = "Solicitação Recusada";
+                        btnEnter.disabled = true;
+                        btnEnter.style.background = "#ef4444"; 
+                    }
+                }
+            });
+        }
+
+        // Evento do botão principal
+        btnEnter.addEventListener('click', () => {
+            if (solicitacaoStatus === "nenhuma") {
+                // Envia a solicitação inicial ao banco de dados Realtime
+                set(ref(rtdb, 'solicitacoes_entrada/' + idSolicitacao), {
+                    id: idSolicitacao,
+                    nome: "Anônimo",
+                    status: "pendente",
+                    timestamp: Date.now()
+                });
+            } 
+            else if (solicitacaoStatus === "aceito") {
+                // Concede o acesso e salva o estado permanentemente
+                entrarNoApp();
+            }
         });
 
-        // Controles de Abertura/Fechamento
+        function entrarNoApp() {
+            // Trava o acesso para nunca mais exibir a tela de solicitação de entrada
+            localStorage.setItem("app_liberado", "true"); 
+            
+            welcomeScreen.style.opacity = '0'; 
+            welcomeScreen.style.transform = 'scale(1.1)';
+            setTimeout(() => { 
+                welcomeScreen.style.display = 'none'; 
+                mainApp.style.display = 'block'; 
+                carregarMensagens(); 
+                inicializarContadorOnline(); 
+            }, 600);
+        }
+
+        // --- SISTEMA DE PRESENÇA VOLÁTIL (ONLINE) ---
+        function inicializarContadorOnline() {
+            const idSessaoTemporaria = Math.random().toString(36).substring(2, 12);
+            const minhaConexaoRef = ref(rtdb, 'presenca_anonima/' + idSessaoTemporaria);
+            const poolPresencaRef = ref(rtdb, 'presenca_anonima');
+
+            set(minhaConexaoRef, true);
+            onDisconnect(minhaConexaoRef).remove();
+
+            onValue(poolPresencaRef, (snapshot) => {
+                const conexoesAtivas = snapshot.val();
+                const totalOnline = conexoesAtivas ? Object.keys(conexoesAtivas).length : 1;
+                
+                const onlineCountEl = document.getElementById('online-count');
+                
+                if(onlineCountEl.innerText !== String(totalOnline)) {
+                    onlineCountEl.innerText = totalOnline;
+                    onlineCountEl.classList.remove('number-pop');
+                    void onlineCountEl.offsetWidth; 
+                    onlineCountEl.classList.add('number-pop');
+                }
+            });
+        }
+
+        // Controles de Abertura/Fechamento dos Painéis
         const togglePostPanel = (show) => {
             if(show) { postOverlay.style.display = 'flex'; setTimeout(() => postPanel.classList.add('show'), 10); }
             else { postPanel.classList.remove('show'); setTimeout(() => postOverlay.style.display = 'none', 300); }
@@ -382,7 +560,6 @@
             const txt = postInput.value.trim(); if(!txt) return;
             const btn = document.getElementById('btn-send'); btn.disabled = true; btn.innerText = 'Enviando...';
             try {
-                // Removemos o envio do autorId
                 await addDoc(collection(db, "mensagens_anonimas"), { 
                     texto: txt, 
                     likes: 0, 
@@ -401,7 +578,6 @@
             const msg = mensagensGlobais.find(m => m.id === activeMessageId);
             const comentariosAtuais = msg.comentarios || [];
             
-            // Removemos o autorId também dos comentários
             const novoComment = {
                 id: Date.now().toString() + Math.floor(Math.random()*1000),
                 texto: txt,
@@ -416,7 +592,6 @@
                 });
             } catch(e) {}
         });
-
     </script>
 </body>
 </html>
