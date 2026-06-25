@@ -2,50 +2,421 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mural de Fofocas ✨</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Chat Anônimo</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background-color: #fdf0f3; padding: 20px; display: flex; flex-direction: column; align-items: center; }
-        h1 { color: #ff4d79; margin-bottom: 30px; }
-        #mural { width: 100%; max-width: 500px; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; -webkit-tap-highlight-color: transparent; }
+        body { background-color: #0f172a; color: #f8fafc; min-height: 100vh; overflow-x: hidden; }
+
+        /* --- TELA DE BOAS VINDAS --- */
+        .welcome-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 1000; transition: opacity 0.6s ease, transform 0.6s ease;
+        }
+        .welcome-content { text-align: center; animation: slideUpFade 1s ease-out forwards; }
+        .welcome-icon { font-size: 4rem; color: #8b5cf6; margin-bottom: 20px; animation: float 3s ease-in-out infinite; }
+        .welcome-title { font-size: 2.2rem; font-weight: 800; margin-bottom: 10px; }
+        .welcome-subtitle { color: #94a3b8; font-size: 1.1rem; margin-bottom: 40px; }
+        .btn-enter { background: #8b5cf6; color: white; border: none; padding: 16px 40px; font-size: 1.2rem; font-weight: bold; border-radius: 30px; cursor: pointer; box-shadow: 0 10px 25px rgba(139, 92, 246, 0.4); }
+
+        /* --- TELA PRINCIPAL --- */
+        .main-app { display: none; max-width: 600px; margin: 0 auto; min-height: 100vh; background-color: #0f172a; padding-bottom: 80px; }
+        .top-bar { position: sticky; top: 0; background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(10px); padding: 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #1e293b; z-index: 100; }
+        .app-title { font-size: 1.4rem; font-weight: bold; color: #f8fafc; display: flex; align-items: center; gap: 10px; }
+        .robot-btn { cursor: pointer; color: #8b5cf6; transition: transform 0.2s; }
+        .robot-btn:hover { transform: scale(1.1); }
+        .btn-open-panel { background: #8b5cf6; color: white; border: none; padding: 10px 20px; border-radius: 20px; font-weight: bold; font-size: 1rem; cursor: pointer; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3); }
+
+        /* --- PAINEL DE REGRAS (LATERAL) --- */
+        .side-panel { position: fixed; top: 0; right: -100%; width: 100%; max-width: 320px; height: 100%; background: #1e293b; z-index: 5000; padding: 30px; transition: right 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); border-left: 2px solid #8b5cf6; overflow-y: auto; }
+        .side-panel.open { right: 0; }
+        .rules-content { color: #cbd5e1; font-size: 1.05rem; line-height: 1.6; }
+
+        /* --- FEED DE MENSAGENS --- */
+        .feed-container { padding: 20px; display: flex; flex-direction: column; gap: 15px; }
+        .msg-card { background: #1e293b; padding: 20px; border-radius: 16px; border-left: 4px solid #8b5cf6; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); animation: slideIn 0.4s ease-out forwards; }
+        .msg-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+        .msg-avatar { width: 35px; height: 35px; background: #334155; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #94a3b8; }
+        .msg-author { font-weight: bold; color: #cbd5e1; font-size: 1.1rem; display: flex; align-items: center; }
+        .msg-text { color: #f8fafc; font-size: 1.05rem; line-height: 1.5; word-wrap: break-word; margin-bottom: 15px; }
         
-        /* Estilo do cartão da mensagem */
-        .msg-card { background: white; padding: 20px; border-radius: 20px; box-shadow: 0 4px 15px rgba(255, 182, 193, 0.5); margin-bottom: 15px; border-left: 5px solid #ff4d79; }
-        .anonym { font-weight: bold; color: #ff4d79; font-size: 0.9rem; margin-bottom: 5px; }
-        .msg { color: #444; font-size: 1.2rem; }
+        /* AÇÕES DA MENSAGEM */
+        .msg-actions { display: flex; gap: 20px; border-top: 1px solid #334155; padding-top: 12px; }
+        .action-btn { background: none; border: none; color: #94a3b8; font-size: 1.1rem; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: color 0.2s; outline: none; }
+        .action-btn span { font-size: 1rem; font-weight: bold; }
+        .action-btn.liked-heart { color: #ef4444; }
+        .action-btn.liked-heart i { animation: popAnimation 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+
+        /* PAINÉIS (MODAIS) */
+        .panel-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(5px); z-index: 2000; align-items: flex-end; justify-content: center; }
+        .bottom-panel { background: #1e293b; width: 100%; max-width: 600px; padding: 20px 25px 30px; border-radius: 24px 24px 0 0; transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); display: flex; flex-direction: column; max-height: 85vh; }
+        .bottom-panel.show { transform: translateY(0); }
+        .panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .panel-title { font-size: 1.2rem; font-weight: bold; }
+        .btn-close { background: none; border: none; color: #94a3b8; font-size: 1.5rem; cursor: pointer; }
+
+        /* POSTAR MENSAGEM */
+        .post-input { width: 100%; background: #0f172a; border: 1px solid #334155; border-radius: 12px; padding: 15px; color: white; font-size: 1.1rem; resize: none; outline: none; min-height: 120px; margin-bottom: 15px; }
+        .post-controls { display: flex; gap: 10px; }
+        .btn-dice { background: #334155; color: #8b5cf6; border: none; padding: 0 20px; border-radius: 12px; font-size: 1.5rem; cursor: pointer; transition: background 0.2s; }
+        .btn-dice:hover { background: #475569; }
+        .btn-send { flex: 1; background: #8b5cf6; color: white; border: none; padding: 14px; font-size: 1.1rem; font-weight: bold; border-radius: 12px; cursor: pointer; }
+        
+        /* ÁREA DE COMENTÁRIOS */
+        .comments-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; margin-bottom: 15px; padding-right: 5px; }
+        .comment-item { background: #0f172a; padding: 12px 15px; border-radius: 12px; display: flex; flex-direction: column; gap: 6px; }
+        .comment-text { font-size: 0.95rem; color: #f8fafc; }
+        .comment-text strong { color: #8b5cf6; }
+        .comment-actions { display: flex; justify-content: flex-end; }
+        .btn-thumb { background: none; border: none; color: #64748b; font-size: 0.9rem; cursor: pointer; display: flex; align-items: center; gap: 5px; outline: none; }
+        .btn-thumb.liked-thumb { color: #3b82f6; }
+        .btn-thumb.liked-thumb i { animation: popAnimation 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+
+        .comment-input-row { display: flex; gap: 10px; }
+        .comment-input { flex: 1; background: #0f172a; border: 1px solid #334155; border-radius: 20px; padding: 12px 15px; color: white; outline: none; }
+        .btn-send-comment { background: #8b5cf6; border: none; width: 45px; border-radius: 50%; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; }
+
+        /* ANIMAÇÕES */
+        @keyframes slideUpFade { 0% { opacity: 0; transform: translateY(30px); } 100% { opacity: 1; transform: translateY(0); } }
+        @keyframes float { 0% { transform: translateY(0px); } 50% { transform: translateY(-15px); } 100% { transform: translateY(0px); } }
+        @keyframes slideIn { 0% { opacity: 0; transform: translateX(-20px); } 100% { opacity: 1; transform: translateX(0); } }
+        @keyframes popAnimation { 0% { transform: scale(1); } 50% { transform: scale(1.4); } 100% { transform: scale(1); } }
+        
+        .empty-state { text-align: center; color: #64748b; padding: 40px 20px; font-size: 1.1rem; }
     </style>
 </head>
 <body>
 
-    <h1>Fofocas do Dia 🎀</h1>
-    <div id="mural"></div>
+    <div id="welcome-screen" class="welcome-screen">
+        <div class="welcome-content">
+            <i class="fa-solid fa-mask welcome-icon"></i>
+            <h1 class="welcome-title">Seja bem vindo</h1>
+            <p class="welcome-subtitle">O seu espaço anônimo para falar.</p>
+            <button id="btn-enter" class="btn-enter">Entrar no Chat</button>
+        </div>
+    </div>
+
+    <div id="main-app" class="main-app">
+        <div class="top-bar">
+            <div class="app-title">
+                <i class="fa-solid fa-robot robot-btn" id="btn-open-rules"></i> Anônimo
+            </div>
+            <button id="btn-open-panel" class="btn-open-panel"><i class="fa-solid fa-pen-to-square"></i> Postar</button>
+        </div>
+        <div id="feed-container" class="feed-container"></div>
+    </div>
+
+    <div id="side-rules" class="side-panel">
+        <button id="btn-close-rules" class="btn-close" style="float: right;"><i class="fa-solid fa-xmark"></i></button>
+        <div class="rules-content" style="clear: both;">
+            <h2 style="color: #8b5cf6; margin-bottom: 15px; margin-top: 10px;">Regras do Chat</h2>
+            <p>• NÂO PODE CITAR NOMES</p><br>
+            <p>• NÃO FICAR MANDANDO MERD@S</p><br>
+            <p>• Respeite o espaço alheio.</p>
+        </div>
+    </div>
+
+    <div id="post-panel-overlay" class="panel-overlay">
+        <div id="post-panel" class="bottom-panel">
+            <div class="panel-header">
+                <span class="panel-title">Nova Mensagem</span>
+                <button id="btn-close-panel" class="btn-close"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <textarea id="post-input" class="post-input" placeholder="Escreva algo em segredo..."></textarea>
+            <div class="post-controls">
+                <button id="btn-dice" class="btn-dice"><i class="fa-solid fa-dice"></i></button>
+                <button id="btn-send" class="btn-send">Enviar Mensagem</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="comments-panel-overlay" class="panel-overlay">
+        <div id="comments-panel" class="bottom-panel">
+            <div class="panel-header">
+                <span class="panel-title">Comentários</span>
+                <button id="btn-close-comments" class="btn-close"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div id="comments-list" class="comments-list"></div>
+            <div class="comment-input-row">
+                <input type="text" id="comment-input" class="comment-input" placeholder="Escreva um comentário...">
+                <button id="btn-send-comment" class="btn-send-comment"><i class="fa-solid fa-paper-plane"></i></button>
+            </div>
+        </div>
+    </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-        import { getFirestore, collection, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, updateDoc, increment } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
         const firebaseConfig = {
-            apiKey: "AIzaSyAqgPPmWG6cM3xpFLtOBjQJ8PmAVV7YgaY",
-            projectId: "chatt-4bfcd",
+          apiKey: "AIzaSyAqgPPmWG6cM3xpFLtOBjQJ8PmAVV7YgaY",
+          authDomain: "chatt-4bfcd.firebaseapp.com",
+          databaseURL: "https://chatt-4bfcd-default-rtdb.firebaseio.com",
+          projectId: "chatt-4bfcd",
+          storageBucket: "chatt-4bfcd.firebasestorage.app",
+          messagingSenderId: "1056039006721",
+          appId: "1:1056039006721:web:7df8605c6dc1b77b460600"
         };
 
-        const db = getFirestore(initializeApp(firebaseConfig));
-        const mural = document.getElementById('mural');
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
 
-        // Escuta as mensagens em tempo real
-        onSnapshot(query(collection(db, "mensagens"), orderBy("timestamp", "desc")), (snapshot) => {
-            mural.innerHTML = ""; // Limpa o mural para atualizar
-            snapshot.forEach((doc) => {
-                const data = doc.data();
-                const div = document.createElement('div');
-                div.className = 'msg-card';
-                div.innerHTML = `
-                    <div class="anonym">Anônimo:</div>
-                    <div class="msg">${data.texto}</div>
-                `;
-                mural.appendChild(div);
-            });
+        // Removendo qualquer rastro antigo do navegador do usuário por segurança
+        localStorage.removeItem("anon_user_id");
+        localStorage.removeItem("msg_likes");
+        localStorage.removeItem("thumb_likes");
+
+        // UI Elements
+        const welcomeScreen = document.getElementById('welcome-screen');
+        const mainApp = document.getElementById('main-app');
+        const feedContainer = document.getElementById('feed-container');
+        
+        // Panels
+        const postOverlay = document.getElementById('post-panel-overlay');
+        const postPanel = document.getElementById('post-panel');
+        const postInput = document.getElementById('post-input');
+        
+        const commentsOverlay = document.getElementById('comments-panel-overlay');
+        const commentsPanel = document.getElementById('comments-panel');
+        const commentsList = document.getElementById('comments-list');
+        const commentInput = document.getElementById('comment-input');
+        
+        const sideRules = document.getElementById('side-rules');
+        document.getElementById('btn-open-rules').onclick = () => sideRules.classList.add('open');
+        document.getElementById('btn-close-rules').onclick = () => sideRules.classList.remove('open');
+
+        // Dado Aleatório
+        const frases = ["Você namora?", "Qual seu maior sonho?", "O que você faria se ganhasse na loteria?", "Como está o seu dia?", "Qual sua música favorita?"];
+        document.getElementById('btn-dice').onclick = () => { postInput.value = frases[Math.floor(Math.random() * frases.length)]; };
+
+        // Variáveis de Estado
+        let mensagensGlobais = [];
+        let activeMessageId = null;
+        let likesSalvos = []; // Armazenado apenas na sessão atual, não salva dados no aparelho
+        let thumbsSalvos = [];
+
+        // Entrar
+        document.getElementById('btn-enter').addEventListener('click', () => {
+            welcomeScreen.style.opacity = '0'; welcomeScreen.style.transform = 'scale(1.1)';
+            setTimeout(() => { welcomeScreen.style.display = 'none'; mainApp.style.display = 'block'; carregarMensagens(); }, 600);
         });
+
+        // Controles de Abertura/Fechamento
+        const togglePostPanel = (show) => {
+            if(show) { postOverlay.style.display = 'flex'; setTimeout(() => postPanel.classList.add('show'), 10); }
+            else { postPanel.classList.remove('show'); setTimeout(() => postOverlay.style.display = 'none', 300); }
+        };
+        document.getElementById('btn-open-panel').addEventListener('click', () => togglePostPanel(true));
+        document.getElementById('btn-close-panel').addEventListener('click', () => togglePostPanel(false));
+
+        const toggleCommentsPanel = (show) => {
+            if(show) { commentsOverlay.style.display = 'flex'; setTimeout(() => commentsPanel.classList.add('show'), 10); }
+            else { commentsPanel.classList.remove('show'); setTimeout(() => commentsOverlay.style.display = 'none', 300); activeMessageId = null; }
+        };
+        document.getElementById('btn-close-comments').addEventListener('click', () => toggleCommentsPanel(false));
+        
+        window.addEventListener('click', (e) => {
+            if(e.target === postOverlay) togglePostPanel(false);
+            if(e.target === commentsOverlay) toggleCommentsPanel(false);
+        });
+
+        // --- BUSCAR DADOS DO FIREBASE ---
+        function carregarMensagens() {
+            const q = query(collection(db, "mensagens_anonimas"), orderBy("timestamp", "desc"));
+            onSnapshot(q, (snapshot) => {
+                mensagensGlobais = [];
+                snapshot.forEach((docSnapshot) => {
+                    mensagensGlobais.push({ id: docSnapshot.id, ...docSnapshot.data() });
+                });
+                
+                renderizarFeed();
+                if(activeMessageId) renderizarComentarios();
+            });
+        }
+
+        // --- DESENHAR FEED ---
+        function renderizarFeed() {
+            feedContainer.innerHTML = '';
+
+            if (mensagensGlobais.length === 0) {
+                feedContainer.innerHTML = `<div class="empty-state"><i class="fa-solid fa-ghost" style="font-size:2.5rem; margin-bottom:15px; color:#334155;"></i><br>Nenhuma mensagem ainda. Seja o primeiro!</div>`;
+                return;
+            }
+
+            mensagensGlobais.forEach((msgObj) => {
+                const hasLiked = likesSalvos.includes(msgObj.id);
+                const coracaoClass = hasLiked ? 'fa-solid fa-heart' : 'fa-regular fa-heart';
+                const btnClass = hasLiked ? 'action-btn liked-heart' : 'action-btn';
+                const numComentarios = msgObj.comentarios ? msgObj.comentarios.length : 0;
+                
+                const card = document.createElement('div');
+                card.className = 'msg-card';
+                card.innerHTML = `
+                    <div class="msg-header">
+                        <div class="msg-avatar"><i class="fa-solid fa-user-secret"></i></div>
+                        <div class="msg-author">Anônimo</div>
+                    </div>
+                    <div class="msg-text">${msgObj.texto}</div>
+                    <div class="msg-actions">
+                        <button class="${btnClass}" data-action="like-msg" data-id="${msgObj.id}">
+                            <i class="${coracaoClass}"></i> <span>${msgObj.likes || 0}</span>
+                        </button>
+                        <button class="action-btn" data-action="open-comments" data-id="${msgObj.id}">
+                            <i class="fa-regular fa-comment"></i> <span>${numComentarios}</span>
+                        </button>
+                    </div>
+                `;
+                feedContainer.appendChild(card);
+            });
+        }
+
+        // LIKES E COMENTÁRIOS NO FEED
+        feedContainer.addEventListener('click', (e) => {
+            const btnLike = e.target.closest('[data-action="like-msg"]');
+            if (btnLike) {
+                const id = btnLike.getAttribute('data-id');
+                const ref = doc(db, "mensagens_anonimas", id);
+                
+                const iconeCoração = btnLike.querySelector('i');
+                const spanNúmero = btnLike.querySelector('span');
+                let qtdAtual = parseInt(spanNúmero.innerText) || 0;
+                
+                if (likesSalvos.includes(id)) {
+                    likesSalvos = likesSalvos.filter(item => item !== id);
+                    
+                    btnLike.classList.remove('liked-heart');
+                    iconeCoração.className = 'fa-regular fa-heart';
+                    spanNúmero.innerText = Math.max(0, qtdAtual - 1);
+                    
+                    updateDoc(ref, { likes: increment(-1) });
+                } else {
+                    likesSalvos.push(id);
+                    
+                    btnLike.classList.add('liked-heart');
+                    iconeCoração.className = 'fa-solid fa-heart';
+                    spanNúmero.innerText = qtdAtual + 1;
+                    
+                    updateDoc(ref, { likes: increment(1) });
+                }
+            }
+
+            const btnComment = e.target.closest('[data-action="open-comments"]');
+            if (btnComment) {
+                activeMessageId = btnComment.getAttribute('data-id');
+                renderizarComentarios();
+                toggleCommentsPanel(true);
+            }
+        });
+
+        // DESENHAR COMENTÁRIOS
+        function renderizarComentarios() {
+            const msg = mensagensGlobais.find(m => m.id === activeMessageId);
+            if(!msg) return;
+            
+            const commentsArray = msg.comentarios || [];
+            commentsList.innerHTML = '';
+            
+            if(commentsArray.length === 0) {
+                commentsList.innerHTML = `<div class="empty-state" style="font-size:0.95rem; padding: 20px 0;">Nenhum comentário. Seja o primeiro!</div>`;
+                return;
+            }
+
+            commentsArray.forEach(c => {
+                const hasLikedThumb = thumbsSalvos.includes(c.id);
+                const thumbClass = hasLikedThumb ? 'fa-solid fa-thumbs-up' : 'fa-regular fa-thumbs-up';
+                const btnThumbClass = hasLikedThumb ? 'btn-thumb liked-thumb' : 'btn-thumb';
+
+                const div = document.createElement('div');
+                div.className = 'comment-item';
+                div.innerHTML = `
+                    <div class="comment-text"><strong style="display:flex; align-items:center;">Anônimo:</strong> <span style="display:block; margin-top:4px;">${c.texto}</span></div>
+                    <div class="comment-actions">
+                        <button class="${btnThumbClass}" data-comment-id="${c.id}">
+                            <i class="${thumbClass}"></i> <span>${c.likes || 0}</span>
+                        </button>
+                    </div>
+                `;
+                
+                div.querySelector('button').addEventListener('click', (e) => {
+                    const cId = c.id;
+                    const index = commentsArray.findIndex(item => item.id === cId);
+                    if(index === -1) return;
+                    
+                    const btnClicado = e.currentTarget;
+                    const iconeMão = btnClicado.querySelector('i');
+                    const spanNúmeroComentário = btnClicado.querySelector('span');
+                    let qtdLikesComentário = parseInt(spanNúmeroComentário.innerText) || 0;
+
+                    let novosComentarios = [...commentsArray];
+                    
+                    if (thumbsSalvos.includes(cId)) {
+                        thumbsSalvos = thumbsSalvos.filter(i => i !== cId);
+                        novosComentarios[index].likes = Math.max(0, (novosComentarios[index].likes || 1) - 1);
+                        
+                        btnClicado.classList.remove('liked-thumb');
+                        iconeMão.className = 'fa-regular fa-thumbs-up';
+                        spanNúmeroComentário.innerText = Math.max(0, qtdLikesComentário - 1);
+                        
+                    } else {
+                        thumbsSalvos.push(cId);
+                        novosComentarios[index].likes = (novosComentarios[index].likes || 0) + 1;
+                        
+                        btnClicado.classList.add('liked-thumb');
+                        iconeMão.className = 'fa-solid fa-thumbs-up';
+                        spanNúmeroComentário.innerText = qtdLikesComentário + 1;
+                    }
+
+                    updateDoc(doc(db, "mensagens_anonimas", activeMessageId), { comentarios: novosComentarios });
+                });
+
+                commentsList.appendChild(div);
+            });
+            commentsList.scrollTop = commentsList.scrollHeight;
+        }
+
+        // Postar Mensagem
+        document.getElementById('btn-send').addEventListener('click', async () => {
+            const txt = postInput.value.trim(); if(!txt) return;
+            const btn = document.getElementById('btn-send'); btn.disabled = true; btn.innerText = 'Enviando...';
+            try {
+                // Removemos o envio do autorId
+                await addDoc(collection(db, "mensagens_anonimas"), { 
+                    texto: txt, 
+                    likes: 0, 
+                    comentarios: [], 
+                    timestamp: serverTimestamp() 
+                });
+                postInput.value = ''; togglePostPanel(false);
+            } catch(e) {} finally { btn.disabled = false; btn.innerText = 'Enviar Mensagem'; }
+        });
+
+        // Enviar Comentário
+        document.getElementById('btn-send-comment').addEventListener('click', async () => {
+            const txt = commentInput.value.trim();
+            if(!txt || !activeMessageId) return;
+
+            const msg = mensagensGlobais.find(m => m.id === activeMessageId);
+            const comentariosAtuais = msg.comentarios || [];
+            
+            // Removemos o autorId também dos comentários
+            const novoComment = {
+                id: Date.now().toString() + Math.floor(Math.random()*1000),
+                texto: txt,
+                likes: 0
+            };
+
+            commentInput.value = '';
+            
+            try {
+                await updateDoc(doc(db, "mensagens_anonimas", activeMessageId), {
+                    comentarios: [...comentariosAtuais, novoComment]
+                });
+            } catch(e) {}
+        });
+
     </script>
 </body>
 </html>
